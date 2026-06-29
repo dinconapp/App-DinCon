@@ -1,0 +1,6 @@
+from typing import Protocol
+
+
+class UserRepository(Protocol):
+    def get(self, user_id: str): ...
+    def update(self, user_id: str, data: dict): ...

@@ -1,0 +1,15 @@
+.git
+.agents
+.codex
+frontend/node_modules
+frontend/.next
+frontend/tsconfig.tsbuildinfo
+backend/.venv
+backend/storage
+**/__pycache__
+**/*.pyc
+*.zip
+.env
+.env.*
+!backend/.env.example
+!frontend/.env.example

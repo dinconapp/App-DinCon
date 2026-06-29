@@ -1,0 +1,6 @@
+from typing import Protocol
+
+
+class CategoryRepository(Protocol):
+    def list(self, type: str | None = None): ...
+    def get(self, category_id: str): ...

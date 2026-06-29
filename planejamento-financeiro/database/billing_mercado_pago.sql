@@ -1,0 +1,80 @@
+CREATE TABLE IF NOT EXISTS plans (
+    id CHAR(36) PRIMARY KEY,
+    code VARCHAR(60) NOT NULL UNIQUE,
+    name VARCHAR(120) NOT NULL,
+    description TEXT NULL,
+    price_cents INT NOT NULL DEFAULT 0,
+    currency VARCHAR(8) NOT NULL DEFAULT 'BRL',
+    billing_interval VARCHAR(30) NOT NULL DEFAULT 'month',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    features JSON NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_plans_code (code),
+    INDEX idx_plans_is_active (is_active)
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id CHAR(36) PRIMARY KEY,
+    user_id CHAR(36) NOT NULL,
+    plan_id CHAR(36) NOT NULL,
+    status VARCHAR(40) NOT NULL DEFAULT 'inactive',
+    provider VARCHAR(40) NOT NULL DEFAULT 'mercadopago',
+    provider_subscription_id VARCHAR(180) NULL,
+    current_period_start DATETIME NULL,
+    current_period_end DATETIME NULL,
+    cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_subscriptions_user_id (user_id),
+    INDEX idx_subscriptions_status (status),
+    INDEX idx_subscriptions_provider_subscription_id (provider_subscription_id),
+    CONSTRAINT fk_subscriptions_user FOREIGN KEY (user_id) REFERENCES users(id),
+    CONSTRAINT fk_subscriptions_plan FOREIGN KEY (plan_id) REFERENCES plans(id)
+);
+
+CREATE TABLE IF NOT EXISTS payments (
+    id CHAR(36) PRIMARY KEY,
+    user_id CHAR(36) NOT NULL,
+    plan_id CHAR(36) NULL,
+    subscription_id CHAR(36) NULL,
+    provider VARCHAR(40) NOT NULL DEFAULT 'mercadopago',
+    provider_payment_id VARCHAR(180) NULL,
+    payment_method VARCHAR(40) NOT NULL,
+    status VARCHAR(40) NOT NULL DEFAULT 'pending',
+    amount_cents INT NOT NULL,
+    currency VARCHAR(8) NOT NULL DEFAULT 'BRL',
+    description TEXT NULL,
+    qr_code TEXT NULL,
+    qr_code_base64 TEXT NULL,
+    checkout_url TEXT NULL,
+    external_reference VARCHAR(180) NULL,
+    provider_payload JSON NOT NULL,
+    sandbox BOOLEAN NOT NULL DEFAULT TRUE,
+    paid_at DATETIME NULL,
+    expires_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_payments_user_id (user_id),
+    INDEX idx_payments_provider_payment_id (provider_payment_id),
+    INDEX idx_payments_status (status),
+    INDEX idx_payments_external_reference (external_reference),
+    CONSTRAINT fk_payments_user FOREIGN KEY (user_id) REFERENCES users(id),
+    CONSTRAINT fk_payments_plan FOREIGN KEY (plan_id) REFERENCES plans(id),
+    CONSTRAINT fk_payments_subscription FOREIGN KEY (subscription_id) REFERENCES subscriptions(id)
+);
+
+CREATE TABLE IF NOT EXISTS payment_events (
+    id CHAR(36) PRIMARY KEY,
+    payment_id CHAR(36) NULL,
+    provider VARCHAR(40) NOT NULL DEFAULT 'mercadopago',
+    event_type VARCHAR(120) NOT NULL,
+    provider_event_id VARCHAR(180) NULL,
+    payload_json JSON NOT NULL,
+    processed BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_payment_events_provider_event (provider, provider_event_id),
+    INDEX idx_payment_events_payment_id (payment_id),
+    INDEX idx_payment_events_provider_event_id (provider_event_id),
+    CONSTRAINT fk_payment_events_payment FOREIGN KEY (payment_id) REFERENCES payments(id)
+);

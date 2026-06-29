@@ -1,0 +1,27 @@
+# Dependencies
+**/node_modules/
+
+# Next.js
+**/.next/
+**/out/
+**/tsconfig.tsbuildinfo
+
+# Python
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+
+# Environment files
+.env
+.env.*
+!.env.compose.example
+!**/.env.example
+!**/.env.production.example
+
+# Local build artifacts
+*.zip
+**/frontend.zip
+**/*.log
+
+# Local runtime storage
+**/storage/
