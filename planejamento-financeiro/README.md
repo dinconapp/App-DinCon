@@ -446,6 +446,61 @@ LIMIT 10;
 - `DELETE /api/integrations/whatsapp/accounts/{id}`
 - `GET /api/integrations/whatsapp/drafts?user_id={id}&status=pending_confirmation`
 
+## Deploy de producao sem VPS
+
+O plano atual de producao usa:
+
+- Frontend: Vercel
+- Backend: Render
+- Banco: MariaDB/MySQL gerenciado
+- Site: `https://dincon.com.br`
+- API: `https://api.dincon.com.br`
+
+Documentacao principal:
+
+```text
+docs/DEPLOY_RENDER_VERCEL.md
+docs/CHECKLIST_RENDER_VERCEL.md
+scripts/apply_remote_mysql_sql.md
+```
+
+Variaveis principais:
+
+```env
+NEXT_PUBLIC_API_URL=https://api.dincon.com.br/api
+CORS_ORIGINS=https://dincon.com.br,https://www.dincon.com.br
+API_PUBLIC_URL=https://api.dincon.com.br
+APP_PUBLIC_URL=https://dincon.com.br
+```
+
+Webhooks de producao:
+
+```text
+POST https://api.dincon.com.br/api/integrations/whatsapp/twilio/webhook
+POST https://api.dincon.com.br/api/integrations/whatsapp/twilio/status
+POST https://api.dincon.com.br/api/billing/webhooks/mercadopago
+```
+
+## Deploy VPS legado
+
+O projeto possui um script para implantar frontend, backend, banco MariaDB, Nginx e SSL em uma VPS Linux com Docker:
+
+```bash
+chmod +x deploy/deploy_dincon_prod.sh
+./deploy/deploy_dincon_prod.sh prepare
+./deploy/deploy_dincon_prod.sh up-http
+./deploy/deploy_dincon_prod.sh ssl
+./deploy/deploy_dincon_prod.sh init-db
+```
+
+Documentacao completa:
+
+```text
+docs/SCRIPT_IMPLANTACAO.md
+docs/DEPLOY_PRODUCAO.md
+docs/OPERACAO.md
+```
+
 ## Observacoes
 
 O frontend nao possui arrays de dados financeiros como fonte principal. Categorias, planejamento, transacoes, contas, dashboard, perfil e projecao sao carregados da API e persistidos no MariaDB.

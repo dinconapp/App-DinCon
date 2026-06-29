@@ -1,4 +1,6 @@
 from functools import lru_cache
+from urllib.parse import quote_plus
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -12,10 +14,13 @@ class Settings(BaseSettings):
     db_name: str = Field(default="planejamento_financeiro", alias="DB_NAME")
     db_user: str = Field(default="root", alias="DB_USER")
     db_password: str = Field(default="root", alias="DB_PASSWORD")
+    database_url_env: str = Field(default="", alias="DATABASE_URL")
+    cors_origins: str = Field(default="", alias="CORS_ORIGINS")
     whatsapp_provider: str = Field(default="twilio", alias="WHATSAPP_PROVIDER")
     twilio_account_sid: str = Field(default="", alias="TWILIO_ACCOUNT_SID")
     twilio_auth_token: str = Field(default="", alias="TWILIO_AUTH_TOKEN")
     twilio_verify_service_sid: str = Field(default="", alias="TWILIO_VERIFY_SERVICE_SID")
+    twilio_verify_channel: str = Field(default="", alias="TWILIO_VERIFY_CHANNEL")
     twilio_verify_email_channel: str = Field(default="email", alias="TWILIO_VERIFY_EMAIL_CHANNEL")
     twilio_verify_sms_channel: str = Field(default="sms", alias="TWILIO_VERIFY_SMS_CHANNEL")
     twilio_whatsapp_number: str = Field(default="whatsapp:+14155238886", alias="TWILIO_WHATSAPP_NUMBER")
@@ -45,10 +50,30 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
+        if self.database_url_env.strip():
+            return self.database_url_env.strip()
+
+        user = quote_plus(self.db_user)
+        password = quote_plus(self.db_password)
+        host = self.db_host.strip()
+        name = quote_plus(self.db_name)
         return (
-            f"mariadb+mariadbconnector://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+            f"mysql+pymysql://{user}:{password}"
+            f"@{host}:{self.db_port}/{name}?charset=utf8mb4"
         )
+
+    @property
+    def allowed_cors_origins(self) -> list[str]:
+        configured = [
+            origin.strip().rstrip("/")
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
+        ]
+        if self.is_production:
+            return configured
+
+        local_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+        return list(dict.fromkeys([*configured, *local_origins]))
 
     class Config:
         env_file = ".env"

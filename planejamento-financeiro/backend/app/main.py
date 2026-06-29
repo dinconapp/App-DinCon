@@ -3,6 +3,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from app.core.config import get_settings
 from app.core.exceptions import BusinessRuleError, NotFoundError
 from app.interfaces.api.routes import (
     auth_routes,
@@ -24,18 +25,14 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
 )
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 app = FastAPI(title="Planejamento Financeiro API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://dincon.com.br",
-        "https://www.dincon.com.br",
-    ],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_origins=settings.allowed_cors_origins,
+    allow_origin_regex=None if settings.is_production else r"http://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,9 +41,9 @@ app.add_middleware(
 
 def local_cors_headers(request: Request) -> dict[str, str]:
     origin = request.headers.get("origin", "")
-    if origin.startswith(("http://localhost:", "http://127.0.0.1:")):
+    if not settings.is_production and origin.startswith(("http://localhost:", "http://127.0.0.1:")):
         return {"Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true"}
-    if origin in {"https://dincon.com.br", "https://www.dincon.com.br"}:
+    if origin.rstrip("/") in settings.allowed_cors_origins:
         return {"Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true"}
     return {}
 

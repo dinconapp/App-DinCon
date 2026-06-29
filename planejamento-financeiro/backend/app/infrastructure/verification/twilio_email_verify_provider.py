@@ -32,7 +32,7 @@ class TwilioEmailVerifyProvider:
         try:
             verification = self._client().verify.v2.services(self.settings.twilio_verify_service_sid).verifications.create(
                 to=to,
-                channel=self.settings.twilio_verify_sms_channel or "sms",
+                channel=self.settings.twilio_verify_channel or self.settings.twilio_verify_sms_channel or "sms",
             )
             logger.info("twilio.verify.sms.started phone=%s status=%s", _mask_phone(to), verification.status)
             return VerifyStartResult(status=verification.status, provider_verification_sid=getattr(verification, "sid", None))

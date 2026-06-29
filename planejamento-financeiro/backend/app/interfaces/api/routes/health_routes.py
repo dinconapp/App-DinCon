@@ -8,7 +8,17 @@ router = APIRouter(prefix="/health", tags=["health"])
 
 
 @router.get("")
-def health(db: Session = Depends(get_db)):
+def health():
+    settings = get_settings()
+    return {
+        "status": "ok",
+        "service": "dincon-backend",
+        "env": settings.app_env,
+    }
+
+
+@router.get("/db")
+def health_db(db: Session = Depends(get_db)):
     settings = get_settings()
     connected = False
     try:
