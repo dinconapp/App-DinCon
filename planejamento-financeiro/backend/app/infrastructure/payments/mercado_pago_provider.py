@@ -23,6 +23,11 @@ class MercadoPagoProvider:
         self._validate_credentials()
         url = f"{self.settings.mercado_pago_api_base_url.rstrip('/')}/v1/payments"
         logger.info("mercadopago.payment.create.start method=%s external_reference=%s", payload.get("payment_method_id"), payload.get("external_reference"))
+        if payload.get("date_of_expiration"):
+            logger.info(
+                "mercadopago.payment.create.payload date_of_expiration_format=%s",
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            )
         response = requests.post(url, headers=self._headers(), json=payload, timeout=40)
         if response.status_code >= 400:
             logger.warning("mercadopago.payment.create.failed status=%s body=%s", response.status_code, response.text[:600])

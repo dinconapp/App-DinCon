@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class TwilioEmailVerifyProvider:
-    request_timeout_seconds = 20.0
+    request_timeout_seconds = 8.0
 
     def __init__(self):
         self.settings = get_settings()
@@ -25,7 +25,7 @@ class TwilioEmailVerifyProvider:
         return Client(
             self.settings.twilio_account_sid,
             self.settings.twilio_auth_token,
-            http_client=TwilioHttpClient(timeout=self.request_timeout_seconds),
+            http_client=TwilioHttpClient(timeout=self.request_timeout_seconds, max_retries=0),
         )
 
     def start_email_verification(self, email: str) -> VerifyStartResult:
@@ -36,35 +36,43 @@ class TwilioEmailVerifyProvider:
 
     def start_sms_verification(self, phone_number: str) -> VerifyStartResult:
         to = normalize_verify_phone(phone_number)
+        started_at = __import__("time").perf_counter()
         try:
             verification = self._client().verify.v2.services(self.settings.twilio_verify_service_sid).verifications.create(
                 to=to,
                 channel=self.settings.twilio_verify_channel or self.settings.twilio_verify_sms_channel or "sms",
             )
-            logger.info("twilio.verify.sms.started phone=%s status=%s", _mask_phone(to), verification.status)
+            elapsed_ms = int((__import__("time").perf_counter() - started_at) * 1000)
+            logger.info("twilio.verify.sms.started phone=%s status=%s elapsed_ms=%s", _mask_phone(to), verification.status, elapsed_ms)
             return VerifyStartResult(status=verification.status, provider_verification_sid=getattr(verification, "sid", None))
         except TwilioRestException as exc:
-            logger.warning("twilio.verify.sms.start.failed phone=%s code=%s status=%s", _mask_phone(to), exc.code, exc.status)
+            elapsed_ms = int((__import__("time").perf_counter() - started_at) * 1000)
+            logger.warning("twilio.verify.sms.start.failed phone=%s code=%s status=%s elapsed_ms=%s", _mask_phone(to), exc.code, exc.status, elapsed_ms)
             raise AuthError(_friendly_twilio_message(exc), "verify_provider_error", 503)
         except Exception:
-            logger.exception("twilio.verify.sms.start.failed phone=%s", _mask_phone(to))
+            elapsed_ms = int((__import__("time").perf_counter() - started_at) * 1000)
+            logger.exception("twilio.verify.sms.start.failed phone=%s elapsed_ms=%s", _mask_phone(to), elapsed_ms)
             raise AuthError("Nao foi possivel enviar ou validar o codigo de verificacao. Tente novamente.", "verify_provider_error", 503)
 
     def check_sms_verification(self, phone_number: str, code: str) -> VerifyCheckResult:
         to = normalize_verify_phone(phone_number)
+        started_at = __import__("time").perf_counter()
         try:
             check = self._client().verify.v2.services(self.settings.twilio_verify_service_sid).verification_checks.create(
                 to=to,
                 code=code,
             )
             approved = check.status == "approved"
-            logger.info("twilio.verify.sms.checked phone=%s status=%s", _mask_phone(to), check.status)
+            elapsed_ms = int((__import__("time").perf_counter() - started_at) * 1000)
+            logger.info("twilio.verify.sms.checked phone=%s status=%s elapsed_ms=%s", _mask_phone(to), check.status, elapsed_ms)
             return VerifyCheckResult(status=check.status, approved=approved)
         except TwilioRestException as exc:
-            logger.warning("twilio.verify.sms.check.failed phone=%s code=%s status=%s", _mask_phone(to), exc.code, exc.status)
+            elapsed_ms = int((__import__("time").perf_counter() - started_at) * 1000)
+            logger.warning("twilio.verify.sms.check.failed phone=%s code=%s status=%s elapsed_ms=%s", _mask_phone(to), exc.code, exc.status, elapsed_ms)
             raise AuthError(_friendly_twilio_message(exc), "invalid_or_expired_code", 400)
         except Exception:
-            logger.exception("twilio.verify.sms.check.failed phone=%s", _mask_phone(to))
+            elapsed_ms = int((__import__("time").perf_counter() - started_at) * 1000)
+            logger.exception("twilio.verify.sms.check.failed phone=%s elapsed_ms=%s", _mask_phone(to), elapsed_ms)
             raise AuthError("Nao foi possivel enviar ou validar o codigo de verificacao. Tente novamente.", "verify_provider_error", 503)
 
 

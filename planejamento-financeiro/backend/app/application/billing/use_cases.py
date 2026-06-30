@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.core.exceptions import NotFoundError
@@ -10,6 +10,16 @@ logger = logging.getLogger(__name__)
 
 def dt(value):
     return value.isoformat() if value else None
+
+
+def format_utc_millis_z(value: datetime | None) -> str | None:
+    if not value:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    else:
+        value = value.astimezone(timezone.utc)
+    return value.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def serialize_plan(plan):
@@ -225,7 +235,7 @@ class BillingUseCases:
         if notification_url:
             payload["notification_url"] = notification_url
         if payment_method_id == "pix" and payment.expires_at:
-            payload["date_of_expiration"] = payment.expires_at.isoformat()
+            payload["date_of_expiration"] = format_utc_millis_z(payment.expires_at)
         if kwargs.get("token"):
             payload["token"] = kwargs["token"]
             payload["installments"] = kwargs.get("installments") or 1
