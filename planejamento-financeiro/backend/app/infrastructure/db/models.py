@@ -10,6 +10,10 @@ def uuid_str() -> str:
     return str(uuid.uuid4())
 
 
+def app_enum(*values: str) -> Enum:
+    return Enum(*values, native_enum=False)
+
+
 class UserModel(Base):
     __tablename__ = "users"
 
@@ -20,7 +24,7 @@ class UserModel(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255))
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    verification_status: Mapped[str] = mapped_column(Enum("not_started", "pending", "approved", "failed", "expired", "canceled"), nullable=False, default="not_started")
+    verification_status: Mapped[str] = mapped_column(app_enum("not_started", "pending", "approved", "failed", "expired", "canceled"), nullable=False, default="not_started")
     verification_started_at: Mapped[datetime | None] = mapped_column(DateTime)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -44,8 +48,8 @@ class EmailVerificationAttemptModel(Base):
     provider: Mapped[str] = mapped_column(String(30), nullable=False, default="twilio")
     provider_service_sid: Mapped[str | None] = mapped_column(String(120))
     provider_verification_sid: Mapped[str | None] = mapped_column(String(120))
-    channel: Mapped[str] = mapped_column(Enum("email", "whatsapp", "sms"), nullable=False, default="email")
-    status: Mapped[str] = mapped_column(Enum("pending", "approved", "failed", "expired", "canceled"), nullable=False, default="pending")
+    channel: Mapped[str] = mapped_column(app_enum("email", "whatsapp", "sms"), nullable=False, default="email")
+    status: Mapped[str] = mapped_column(app_enum("pending", "approved", "failed", "expired", "canceled"), nullable=False, default="pending")
     error_code: Mapped[str | None] = mapped_column(String(80))
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -64,7 +68,7 @@ class CategoryModel(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    type: Mapped[str] = mapped_column(Enum("income", "expense"), nullable=False)
+    type: Mapped[str] = mapped_column(app_enum("income", "expense"), nullable=False)
     icon_key: Mapped[str | None] = mapped_column(String(80))
     color: Mapped[str | None] = mapped_column(String(20))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -79,8 +83,8 @@ class BudgetModel(Base):
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     category_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("categories.id"))
     description: Mapped[str] = mapped_column(String(180), nullable=False)
-    kind: Mapped[str] = mapped_column(Enum("income", "expense"), nullable=False)
-    budget_type: Mapped[str] = mapped_column(Enum("fixed", "variable"), nullable=False)
+    kind: Mapped[str] = mapped_column(app_enum("income", "expense"), nullable=False)
+    budget_type: Mapped[str] = mapped_column(app_enum("fixed", "variable"), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     start_month: Mapped[str | None] = mapped_column(String(7))
     end_month: Mapped[str | None] = mapped_column(String(7))
@@ -108,11 +112,11 @@ class TransactionModel(Base):
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     budget_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("budgets.id"))
     category_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("categories.id"))
-    kind: Mapped[str] = mapped_column(Enum("income", "expense"), nullable=False)
+    kind: Mapped[str] = mapped_column(app_enum("income", "expense"), nullable=False)
     title: Mapped[str] = mapped_column(String(180), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     transaction_date: Mapped[date] = mapped_column(Date, nullable=False)
-    status: Mapped[str] = mapped_column(Enum("paid", "pending", "canceled"), default="paid")
+    status: Mapped[str] = mapped_column(app_enum("paid", "pending", "canceled"), default="paid")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -154,8 +158,8 @@ class WhatsAppMessageModel(Base):
     whatsapp_account_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("whatsapp_accounts.id"))
     provider: Mapped[str] = mapped_column(String(30), nullable=False, default="twilio")
     provider_message_id: Mapped[str | None] = mapped_column(String(120))
-    direction: Mapped[str] = mapped_column(Enum("inbound", "outbound"), nullable=False)
-    message_type: Mapped[str] = mapped_column(Enum("text", "audio", "image", "unknown"), nullable=False)
+    direction: Mapped[str] = mapped_column(app_enum("inbound", "outbound"), nullable=False)
+    message_type: Mapped[str] = mapped_column(app_enum("text", "audio", "image", "unknown"), nullable=False)
     from_number: Mapped[str] = mapped_column(String(30), nullable=False)
     to_number: Mapped[str] = mapped_column(String(30), nullable=False)
     body: Mapped[str | None] = mapped_column(Text)
@@ -180,8 +184,8 @@ class WhatsAppTransactionDraftModel(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     whatsapp_message_id: Mapped[str] = mapped_column(String(36), ForeignKey("whatsapp_messages.id"), nullable=False)
-    status: Mapped[str] = mapped_column(Enum("pending_confirmation", "confirmed", "rejected", "expired", "needs_correction"), nullable=False, default="pending_confirmation")
-    kind: Mapped[str] = mapped_column(Enum("income", "expense"), nullable=False)
+    status: Mapped[str] = mapped_column(app_enum("pending_confirmation", "confirmed", "rejected", "expired", "needs_correction"), nullable=False, default="pending_confirmation")
+    kind: Mapped[str] = mapped_column(app_enum("income", "expense"), nullable=False)
     title: Mapped[str] = mapped_column(String(180), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     category_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("categories.id"))
@@ -213,9 +217,9 @@ class SavingsInvestmentModel(Base):
     description: Mapped[str | None] = mapped_column(Text)
     initial_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     monthly_contribution: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
-    interest_type: Mapped[str] = mapped_column(Enum("simple", "compound", "none"), nullable=False, default="compound")
+    interest_type: Mapped[str] = mapped_column(app_enum("simple", "compound", "none"), nullable=False, default="compound")
     interest_rate: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False, default=0)
-    interest_period: Mapped[str] = mapped_column(Enum("monthly", "yearly"), nullable=False, default="monthly")
+    interest_period: Mapped[str] = mapped_column(app_enum("monthly", "yearly"), nullable=False, default="monthly")
     start_month: Mapped[str] = mapped_column(String(7), nullable=False)
     end_month: Mapped[str | None] = mapped_column(String(7))
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

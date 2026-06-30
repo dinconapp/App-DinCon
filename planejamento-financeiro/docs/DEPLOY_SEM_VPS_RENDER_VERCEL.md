@@ -4,7 +4,7 @@ O plano atual de produção do DinCon é:
 
 - Frontend na Vercel
 - Backend no Render
-- MariaDB/MySQL gerenciado
+- PostgreSQL gerenciado
 - Site em `https://dincon.com.br`
 - API em `https://api.dincon.com.br`
 

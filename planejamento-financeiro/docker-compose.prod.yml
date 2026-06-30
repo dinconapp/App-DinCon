@@ -17,7 +17,7 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://dincon.com.br/api}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.dincon.com.br/api}
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -29,22 +29,21 @@ services:
     env_file:
       - ./backend/.env.production
     depends_on:
-      - mariadb
+      - postgres
     volumes:
       - backend_storage:/app/storage
     restart: unless-stopped
 
-  mariadb:
-    image: mariadb:12.2
+  postgres:
+    image: postgres:16-alpine
     environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
-      MARIADB_DATABASE: ${DB_NAME:-planejamento_financeiro}
-      MARIADB_USER: ${DB_USER:-dincon_app}
-      MARIADB_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-planejamento_financeiro}
+      POSTGRES_USER: ${DB_USER:-dincon_app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
 volumes:
-  mariadb_data:
+  postgres_data:
   backend_storage:

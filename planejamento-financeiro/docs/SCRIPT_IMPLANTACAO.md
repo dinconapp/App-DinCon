@@ -4,7 +4,7 @@ Este projeto possui um script para hospedar a aplicação completa em uma VPS Li
 
 - Frontend Next.js
 - Backend FastAPI
-- Banco MariaDB
+- Banco PostgreSQL
 - Nginx como proxy
 - Certificado TLS com Certbot
 
@@ -110,7 +110,7 @@ Importante: `init-db` aplica os scripts SQL principais. Em banco já existente, 
 ./deploy/deploy_dincon_prod.sh logs backend
 ./deploy/deploy_dincon_prod.sh logs frontend
 ./deploy/deploy_dincon_prod.sh logs nginx
-./deploy/deploy_dincon_prod.sh logs mariadb
+./deploy/deploy_dincon_prod.sh logs postgres
 ```
 
 ## Backup do banco

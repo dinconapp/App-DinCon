@@ -1,13 +1,14 @@
 services:
-  mariadb:
-    image: mariadb:11
+  postgres:
+    image: postgres:16-alpine
     environment:
-      MARIADB_ROOT_PASSWORD: root
-      MARIADB_DATABASE: planejamento_financeiro
+      POSTGRES_DB: planejamento_financeiro
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  mariadb_data:
+  postgres_data:

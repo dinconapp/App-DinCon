@@ -1,6 +1,6 @@
 # planejamento-financeiro
 
-Aplicacao web de planejamento financeiro pessoal com backend FastAPI, frontend Next.js e persistencia em MariaDB.
+Aplicacao web de planejamento financeiro pessoal com backend FastAPI, frontend Next.js e persistencia em PostgreSQL.
 
 ## Arquitetura
 
@@ -12,27 +12,37 @@ Aplicacao web de planejamento financeiro pessoal com backend FastAPI, frontend N
 - `frontend/src/hooks`: estado e carregamento por dominio.
 - `frontend/src/components`: componentes visuais reutilizaveis.
 
-## Banco MariaDB
+## Banco PostgreSQL
 
 Crie o banco:
 
 ```sql
-CREATE DATABASE planejamento_financeiro CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE planejamento_financeiro;
 ```
 
 Rode os scripts:
 
 ```bash
-mysql -u root -p planejamento_financeiro < database/schema.sql
-mysql -u root -p planejamento_financeiro < database/seed_categories.sql
-mysql -u root -p planejamento_financeiro < database/savings.sql
-mysql -u root -p planejamento_financeiro < database/billing_mercado_pago.sql
+psql "$DATABASE_URL" -f database/postgres/schema.sql
+psql "$DATABASE_URL" -f database/postgres/seed_categories.sql
+```
+
+Ou use o script automatizado:
+
+```powershell
+.\scripts\init_postgres_database.ps1 -HostName "HOST_DO_POSTGRES" -AdminUser "postgres" -Database "planejamento_financeiro"
+```
+
+Guia completo:
+
+```text
+docs/CRIACAO_BANCO_POSTGRES.md
 ```
 
 Opcional para ambiente de desenvolvimento:
 
 ```bash
-mysql -u root -p planejamento_financeiro < database/seed_dev.sql
+psql "$DATABASE_URL" -f database/postgres/seed_dev.sql
 ```
 
 O seed de desenvolvimento cria apenas um usuario inicial. Nao cria transacoes falsas.
@@ -47,7 +57,7 @@ APP_HOST=127.0.0.1
 APP_PORT=8000
 
 DB_HOST=127.0.0.1
-DB_PORT=3306
+DB_PORT=5432
 DB_NAME=planejamento_financeiro
 DB_USER=root
 DB_PASSWORD=root
@@ -140,7 +150,7 @@ https://dincon.com.br
 https://www.dincon.com.br
 ```
 
-Antes de subir, conferir DNS, HTTPS valido, variaveis reais de Twilio/OpenAI/Mercado Pago e banco MariaDB de producao.
+Antes de subir, conferir DNS, HTTPS valido, variaveis reais de Twilio/OpenAI/Mercado Pago e banco PostgreSQL de producao.
 
 Documentacao operacional:
 
@@ -186,7 +196,7 @@ Em producao, use `TWILIO_WEBHOOK_VALIDATE_SIGNATURE=true`.
 5. Rode o script SQL:
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -u root -p planejamento_financeiro < database/whatsapp_integration.sql
+psql "$DATABASE_URL" -f database/postgres/schema.sql
 ```
 
 6. Suba o backend:
@@ -232,7 +242,7 @@ WHATSAPP_MAX_AUDIO_MB=15
 Para bases antigas, rode:
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -u root -p planejamento_financeiro < database/whatsapp_audio.sql
+psql "$DATABASE_URL" -f database/postgres/schema.sql
 ```
 
 Teste com `MediaUrl0` fake. O esperado e retornar TwiML amigavel, sem HTTP 500:
@@ -270,7 +280,7 @@ A tela Cofrinho permite cadastrar investimentos e visualizar dashboard/projecao 
 Para ambientes existentes, rode:
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -u root -p planejamento_financeiro < database/savings.sql
+psql "$DATABASE_URL" -f database/postgres/schema.sql
 ```
 
 Tipos de rendimento:
@@ -299,7 +309,7 @@ O backend possui integracao de billing baseada no fluxo do Financeia, adaptada p
 Rode a migration:
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -u root -p planejamento_financeiro < database/billing_mercado_pago.sql
+psql "$DATABASE_URL" -f database/postgres/schema.sql
 ```
 
 Configure `backend/.env`:
@@ -349,7 +359,7 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
 5. Rode a migration:
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -u root -p planejamento_financeiro < database/email_verify_auth.sql
+psql "$DATABASE_URL" -f database/postgres/schema.sql
 ```
 
 6. Suba backend e frontend, crie uma conta, informe o codigo recebido por SMS e faca login.
@@ -452,7 +462,7 @@ O plano atual de producao usa:
 
 - Frontend: Vercel
 - Backend: Render
-- Banco: MariaDB/MySQL gerenciado
+- Banco: PostgreSQL gerenciado
 - Site: `https://dincon.com.br`
 - API: `https://api.dincon.com.br`
 
@@ -461,7 +471,7 @@ Documentacao principal:
 ```text
 docs/DEPLOY_RENDER_VERCEL.md
 docs/CHECKLIST_RENDER_VERCEL.md
-scripts/apply_remote_mysql_sql.md
+scripts/apply_remote_postgres_sql.md
 ```
 
 Variaveis principais:
@@ -483,7 +493,7 @@ POST https://api.dincon.com.br/api/billing/webhooks/mercadopago
 
 ## Deploy VPS legado
 
-O projeto possui um script para implantar frontend, backend, banco MariaDB, Nginx e SSL em uma VPS Linux com Docker:
+O projeto possui um script legado para implantar frontend, backend, banco PostgreSQL, Nginx e SSL em uma VPS Linux com Docker:
 
 ```bash
 chmod +x deploy/deploy_dincon_prod.sh
@@ -503,4 +513,4 @@ docs/OPERACAO.md
 
 ## Observacoes
 
-O frontend nao possui arrays de dados financeiros como fonte principal. Categorias, planejamento, transacoes, contas, dashboard, perfil e projecao sao carregados da API e persistidos no MariaDB.
+O frontend nao possui arrays de dados financeiros como fonte principal. Categorias, planejamento, transacoes, contas, dashboard, perfil e projecao sao carregados da API e persistidos no PostgreSQL.

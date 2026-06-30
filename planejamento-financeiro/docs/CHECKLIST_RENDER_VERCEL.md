@@ -2,9 +2,9 @@
 
 ## Antes do deploy
 
-- [ ] Banco MariaDB/MySQL gerenciado criado.
+- [ ] Banco PostgreSQL gerenciado criado.
 - [ ] SQLs aplicados no banco gerenciado.
-- [ ] `SHOW TABLES;` validado.
+- [ ] `\dt` validado no PostgreSQL.
 - [ ] Backend criado no Render.
 - [ ] Root Directory do Render: `planejamento-financeiro/backend`.
 - [ ] Build Command do Render: `pip install -r requirements.txt`.

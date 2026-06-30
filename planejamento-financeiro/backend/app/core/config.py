@@ -1,5 +1,5 @@
 from functools import lru_cache
-from urllib.parse import quote_plus
+from urllib.parse import quote
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     app_host: str = Field(default="127.0.0.1", alias="APP_HOST")
     app_port: int = Field(default=8000, alias="APP_PORT")
     db_host: str = Field(default="127.0.0.1", alias="DB_HOST")
-    db_port: int = Field(default=3306, alias="DB_PORT")
+    db_port: int = Field(default=5432, alias="DB_PORT")
     db_name: str = Field(default="planejamento_financeiro", alias="DB_NAME")
     db_user: str = Field(default="root", alias="DB_USER")
     db_password: str = Field(default="root", alias="DB_PASSWORD")
@@ -53,14 +53,11 @@ class Settings(BaseSettings):
         if self.database_url_env.strip():
             return self.database_url_env.strip()
 
-        user = quote_plus(self.db_user)
-        password = quote_plus(self.db_password)
+        user = quote(self.db_user, safe="")
+        password = quote(self.db_password, safe="")
         host = self.db_host.strip()
-        name = quote_plus(self.db_name)
-        return (
-            f"mysql+pymysql://{user}:{password}"
-            f"@{host}:{self.db_port}/{name}?charset=utf8mb4"
-        )
+        name = quote(self.db_name, safe="")
+        return f"postgresql+psycopg2://{user}:{password}@{host}:{self.db_port}/{name}"
 
     @property
     def allowed_cors_origins(self) -> list[str]:

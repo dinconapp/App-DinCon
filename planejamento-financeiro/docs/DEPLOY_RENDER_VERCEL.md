@@ -6,7 +6,7 @@ Este guia é o modelo atual recomendado para produção do DinCon.
 
 - Frontend: Vercel
 - Backend: Render Web Service
-- Banco: MariaDB/MySQL gerenciado
+- Banco: PostgreSQL gerenciado
 - Site: `https://dincon.com.br`
 - API: `https://api.dincon.com.br`
 - Base URL do frontend: `https://api.dincon.com.br/api`
@@ -15,7 +15,7 @@ Os arquivos de VPS com Docker Compose, Nginx e Certbot continuam no projeto apen
 
 ## 1. Banco gerenciado
 
-Crie um banco MariaDB/MySQL em um provedor gerenciado e anote:
+Crie um banco PostgreSQL em um provedor gerenciado e anote:
 
 - host
 - porta
@@ -27,7 +27,7 @@ Variáveis usadas pelo backend:
 
 ```env
 DB_HOST=
-DB_PORT=3306
+DB_PORT=5432
 DB_NAME=planejamento_financeiro
 DB_USER=
 DB_PASSWORD=
@@ -36,7 +36,7 @@ DB_PASSWORD=
 Se o provedor entregar uma URL completa, você pode usar:
 
 ```env
-DATABASE_URL=mysql+pymysql://USUARIO:SENHA@HOST:3306/planejamento_financeiro?charset=utf8mb4
+DATABASE_URL=postgresql+psycopg2://USUARIO:SENHA@HOST:5432/planejamento_financeiro
 ```
 
 `DATABASE_URL` tem prioridade sobre `DB_*`.
@@ -46,25 +46,19 @@ DATABASE_URL=mysql+pymysql://USUARIO:SENHA@HOST:3306/planejamento_financeiro?cha
 Use o guia:
 
 ```text
-scripts/apply_remote_mysql_sql.md
+scripts/apply_remote_postgres_sql.md
 ```
 
 Ordem principal:
 
-1. `database/schema.sql`
-2. `database/seed_categories.sql`
-3. `database/migration_income_category_optional.sql`
-4. `database/user_contact_fields.sql`
-5. `database/whatsapp_integration.sql`
-6. `database/whatsapp_audio.sql`
-7. `database/savings.sql`
-8. `database/billing_mercado_pago.sql`
-9. `database/email_verify_auth.sql`
+1. `database/postgres/schema.sql`
+2. `database/postgres/seed_categories.sql`
+3. Opcional em desenvolvimento: `database/postgres/seed_dev.sql`
 
 Valide:
 
 ```sql
-SHOW TABLES;
+\dt
 ```
 
 ## 3. Backend no Render
@@ -97,7 +91,7 @@ APP_PUBLIC_URL=https://dincon.com.br
 CORS_ORIGINS=https://dincon.com.br,https://www.dincon.com.br
 
 DB_HOST=
-DB_PORT=3306
+DB_PORT=5432
 DB_NAME=planejamento_financeiro
 DB_USER=
 DB_PASSWORD=

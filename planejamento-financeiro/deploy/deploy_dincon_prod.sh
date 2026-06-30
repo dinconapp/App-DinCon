@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 # DinCon production deploy helper.
-# Target: Linux VPS with Docker Compose, Nginx container, frontend, backend and MariaDB.
+# Target: Linux VPS with Docker Compose, Nginx container, frontend, backend and PostgreSQL.
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${PROJECT_DIR}/docker-compose.prod.yml"
@@ -30,7 +30,7 @@ Usage:
   ./deploy/deploy_dincon_prod.sh init-db
   ./deploy/deploy_dincon_prod.sh apply-sql database/file.sql
   ./deploy/deploy_dincon_prod.sh status
-  ./deploy/deploy_dincon_prod.sh logs [backend|frontend|nginx|mariadb]
+  ./deploy/deploy_dincon_prod.sh logs [backend|frontend|nginx|postgres]
   ./deploy/deploy_dincon_prod.sh backup-db
   ./deploy/deploy_dincon_prod.sh renew-ssl
   ./deploy/deploy_dincon_prod.sh down
@@ -72,12 +72,13 @@ load_compose_env() {
   DB_NAME="${DB_NAME:-planejamento_financeiro}"
 }
 
-require_root_db_password() {
+require_db_password() {
   load_compose_env
-  if [[ -z "${MARIADB_ROOT_PASSWORD:-}" ]]; then
-    echo "MARIADB_ROOT_PASSWORD is missing. Set it in ${PROJECT_DIR}/.env" >&2
+  if [[ -z "${DB_PASSWORD:-}" ]]; then
+    echo "DB_PASSWORD is missing. Set it in ${PROJECT_DIR}/.env" >&2
     exit 1
   fi
+  DB_USER="${DB_USER:-dincon_app}"
 }
 
 prepare() {
@@ -157,22 +158,22 @@ renew_ssl() {
 }
 
 wait_for_db() {
-  require_root_db_password
-  echo "Waiting for MariaDB..."
+  require_db_password
+  echo "Waiting for PostgreSQL..."
   for _ in $(seq 1 60); do
-    if compose exec -T mariadb mariadb-admin ping -u root -p"${MARIADB_ROOT_PASSWORD}" --silent >/dev/null 2>&1; then
-      echo "MariaDB is ready."
+    if compose exec -T postgres pg_isready -U "${DB_USER}" -d "${DB_NAME}" >/dev/null 2>&1; then
+      echo "PostgreSQL is ready."
       return 0
     fi
     sleep 2
   done
-  echo "MariaDB did not become ready in time." >&2
+  echo "PostgreSQL did not become ready in time." >&2
   exit 1
 }
 
 run_sql_file() {
   local sql_file="$1"
-  require_root_db_password
+  require_db_password
 
   if [[ ! -f "${sql_file}" ]]; then
     echo "SQL file not found: ${sql_file}" >&2
@@ -180,22 +181,15 @@ run_sql_file() {
   fi
 
   echo "Applying ${sql_file}"
-  compose exec -T mariadb mariadb -u root -p"${MARIADB_ROOT_PASSWORD}" "${DB_NAME}" < "${sql_file}"
+  compose exec -T postgres psql -U "${DB_USER}" -d "${DB_NAME}" < "${sql_file}"
 }
 
 init_db() {
   wait_for_db
 
   local files=(
-    "database/schema.sql"
-    "database/seed_categories.sql"
-    "database/migration_income_category_optional.sql"
-    "database/user_contact_fields.sql"
-    "database/whatsapp_integration.sql"
-    "database/whatsapp_audio.sql"
-    "database/savings.sql"
-    "database/billing_mercado_pago.sql"
-    "database/email_verify_auth.sql"
+    "database/postgres/schema.sql"
+    "database/postgres/seed_categories.sql"
   )
 
   echo "This command initializes/applies SQL files to database '${DB_NAME}'."
@@ -210,13 +204,13 @@ init_db() {
 }
 
 backup_db() {
-  require_root_db_password
+  require_db_password
   mkdir -p "${BACKUP_DIR}"
   local timestamp
   timestamp="$(date +%Y%m%d_%H%M%S)"
   local output="${BACKUP_DIR}/dincon_${DB_NAME}_${timestamp}.sql"
 
-  compose exec -T mariadb mariadb-dump -u root -p"${MARIADB_ROOT_PASSWORD}" "${DB_NAME}" > "${output}"
+  compose exec -T postgres pg_dump -U "${DB_USER}" "${DB_NAME}" > "${output}"
   gzip -f "${output}"
   echo "Backup created: ${output}.gz"
 }
