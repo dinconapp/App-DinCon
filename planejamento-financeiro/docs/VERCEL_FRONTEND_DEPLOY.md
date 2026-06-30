@@ -20,6 +20,7 @@ Variável obrigatória:
 
 ```env
 NEXT_PUBLIC_API_URL=https://app-dincon.onrender.com/api
+NEXT_PUBLIC_PASSWORD_ENCRYPTION_PUBLIC_KEY=-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----
 ```
 
 Quando `api.dincon.com.br` estiver configurado:

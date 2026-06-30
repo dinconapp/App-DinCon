@@ -1,4 +1,5 @@
 const ENCRYPTED_PREFIX = "enc:v1:";
+let warnedMissingKey = false;
 
 function publicKeyPem() {
   return process.env.NEXT_PUBLIC_PASSWORD_ENCRYPTION_PUBLIC_KEY?.replace(/\\n/g, "\n").trim() ?? "";
@@ -26,7 +27,13 @@ export async function encryptPassword(password: string) {
   if (password.startsWith(ENCRYPTED_PREFIX)) return password;
   const pem = publicKeyPem();
   if (!pem) {
-    throw new Error("Criptografia de senha nao configurada no frontend.");
+    if (!warnedMissingKey) {
+      warnedMissingKey = true;
+      console.warn(
+        "NEXT_PUBLIC_PASSWORD_ENCRYPTION_PUBLIC_KEY nao configurada. A senha sera enviada sem criptografia ate o proximo build."
+      );
+    }
+    return password;
   }
   const key = await window.crypto.subtle.importKey(
     "spki",

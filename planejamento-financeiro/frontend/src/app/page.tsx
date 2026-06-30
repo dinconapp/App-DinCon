@@ -59,6 +59,11 @@ export default function Home() {
         <Link className="cf-lp-logo" href="/">
           <img src="/logo/dincon_logo_dark_mode.png" alt="DinCon" />
         </Link>
+        <div className="cf-lp-nav-links" aria-label="Funcionalidades principais">
+          {modules.map((module) => (
+            <a key={module.title} href="#funcionalidades">{module.title.replace(" do mês", "")}</a>
+          ))}
+        </div>
       </nav>
 
       <section className="cf-lp-hero">
@@ -109,15 +114,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="cf-lp-strip" aria-label="Recursos principais">
-        <span>Dashboard</span>
-        <span>Fluxo de caixa</span>
-        <span>Lançamentos</span>
-        <span>Contas</span>
-        <span>Cofrinho</span>
-        <span>WhatsApp</span>
-      </section>
-
       <section className="cf-lp-section" id="funcionalidades">
         <div className="cf-lp-section-head">
           <span>Funcionalidades</span>
@@ -129,7 +125,9 @@ export default function Home() {
             const Icon = feature.icon;
             return (
               <article key={feature.title}>
-                <Icon size={22} />
+                <span className="cf-lp-feature-icon">
+                  <Icon size={22} />
+                </span>
                 <h3>{feature.title}</h3>
                 <p>{feature.text}</p>
               </article>
@@ -145,17 +143,17 @@ export default function Home() {
         </div>
         <div className="cf-lp-steps">
           <article>
-            <strong>1</strong>
+            <strong className="cf-lp-step-number">1</strong>
             <h3>Planeje receitas e contas</h3>
             <p>Monte seus orçamentos, contas fixas e entradas esperadas no fluxo de caixa.</p>
           </article>
           <article>
-            <strong>2</strong>
+            <strong className="cf-lp-step-number">2</strong>
             <h3>Registre o movimento real</h3>
             <p>Adicione lançamentos manualmente ou acompanhe rascunhos vindos da integração com WhatsApp.</p>
           </article>
           <article>
-            <strong>3</strong>
+            <strong className="cf-lp-step-number">3</strong>
             <h3>Acompanhe o impacto</h3>
             <p>Veja dashboard, contas, projeção de saldo e cofrinho para decidir o próximo passo.</p>
           </article>
