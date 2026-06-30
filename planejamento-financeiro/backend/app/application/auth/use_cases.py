@@ -8,10 +8,11 @@ logger = logging.getLogger(__name__)
 
 
 class AuthUseCases:
-    def __init__(self, users, attempts, hasher, jwt_provider, verify_provider):
+    def __init__(self, users, attempts, hasher, password_cipher, jwt_provider, verify_provider):
         self.users = users
         self.attempts = attempts
         self.hasher = hasher
+        self.password_cipher = password_cipher
         self.jwt = jwt_provider
         self.verify = verify_provider
 
@@ -28,7 +29,7 @@ class AuthUseCases:
                 "name": payload.name.strip(),
                 "email": email,
                 "phone": phone,
-                "password_hash": self.hasher.hash(payload.password),
+                "password_hash": self.hasher.hash(self.password_cipher.decrypt_if_needed(payload.password)),
                 "active": False,
                 "email_verified": False,
                 "verification_status": "pending",
@@ -40,7 +41,7 @@ class AuthUseCases:
         else:
             user = self.users.update(user.id, {
                 "name": payload.name.strip(),
-                "password_hash": self.hasher.hash(payload.password),
+                "password_hash": self.hasher.hash(self.password_cipher.decrypt_if_needed(payload.password)),
                 "phone": phone,
                 "active": False,
                 "email_verified": False,
@@ -168,7 +169,7 @@ class AuthUseCases:
 
         now = datetime.utcnow()
         self.users.update(user.id, {
-            "password_hash": self.hasher.hash(payload.password),
+            "password_hash": self.hasher.hash(self.password_cipher.decrypt_if_needed(payload.password)),
             "active": True,
             "email_verified": True,
             "verification_status": "approved",
@@ -181,7 +182,8 @@ class AuthUseCases:
     def login(self, payload):
         email = normalize_email(str(payload.email))
         user = self.users.get_by_email_or_none(email)
-        if not user or not self.hasher.verify(payload.password, user.password_hash):
+        password = self.password_cipher.decrypt_if_needed(payload.password)
+        if not user or not self.hasher.verify(password, user.password_hash):
             raise AuthError("E-mail ou senha invalidos.", "invalid_credentials", 401)
         if not user.active or not user.email_verified:
             raise AuthError("Seu celular ainda nao foi verificado por SMS. Informe o codigo enviado ou solicite um novo.", "email_not_verified", 403)

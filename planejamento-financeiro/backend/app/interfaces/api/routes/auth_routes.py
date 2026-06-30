@@ -8,6 +8,7 @@ from app.application.auth.use_cases import AuthUseCases
 from app.core.database import get_db
 from app.domain.auth.services import AuthError
 from app.infrastructure.auth.password_hasher import PasswordHasher
+from app.infrastructure.auth.password_cipher import PasswordCipher
 from app.infrastructure.verification.twilio_email_verify_provider import TwilioEmailVerifyProvider
 from app.interfaces.api.dependencies import repositories, require_auth_user
 
@@ -21,6 +22,7 @@ def use_cases(db: Session) -> AuthUseCases:
         repos["auth_users"],
         repos["email_verifications"],
         PasswordHasher(),
+        PasswordCipher(),
         JwtProvider(),
         TwilioEmailVerifyProvider(),
     )

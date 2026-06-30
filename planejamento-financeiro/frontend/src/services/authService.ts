@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "./api";
+import { encryptPassword } from "./passwordEncryption";
 
 export type AuthUser = {
   id: string;
@@ -56,7 +57,7 @@ export async function signUp(name: string, email: string, phone: string, passwor
     name: name.trim(),
     email: email.trim().toLowerCase(),
     phone: phone.trim(),
-    password,
+    password: await encryptPassword(password),
   });
   return data;
 }
@@ -87,7 +88,7 @@ export async function confirmPasswordReset(email: string, code: string, password
   const { data } = await api.post<{ status: string; message: string }>("/auth/password-reset/confirm", {
     email: email.trim().toLowerCase(),
     code: code.trim(),
-    password,
+    password: await encryptPassword(password),
   });
   return data;
 }
@@ -95,7 +96,7 @@ export async function confirmPasswordReset(email: string, code: string, password
 export async function signIn(email: string, password: string) {
   const { data } = await api.post<{ access_token: string; token_type: string; user: AuthUser }>("/auth/login", {
     email: email.trim().toLowerCase(),
-    password,
+    password: await encryptPassword(password),
   });
   const session = { ...data.user, access_token: data.access_token };
   writeSession(session);

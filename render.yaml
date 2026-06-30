@@ -17,3 +17,7 @@ services:
         generateValue: true
       - key: TWILIO_WEBHOOK_VALIDATE_SIGNATURE
         value: "true"
+      - key: PASSWORD_ENCRYPTION_REQUIRED
+        value: "true"
+      - key: PASSWORD_ENCRYPTION_PRIVATE_KEY
+        sync: false

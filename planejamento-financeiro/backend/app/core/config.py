@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(default="change-me", alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_access_token_expire_minutes: int = Field(default=1440, alias="JWT_ACCESS_TOKEN_EXPIRE_MINUTES")
+    password_encryption_private_key: str = Field(default="", alias="PASSWORD_ENCRYPTION_PRIVATE_KEY")
+    password_encryption_required: bool = Field(default=False, alias="PASSWORD_ENCRYPTION_REQUIRED")
 
     @property
     def is_production(self) -> bool:
@@ -81,6 +83,8 @@ class Settings(BaseSettings):
             raise RuntimeError("JWT_SECRET_KEY deve ser forte e ter pelo menos 32 caracteres em producao.")
         if not self.twilio_webhook_validate_signature:
             raise RuntimeError("TWILIO_WEBHOOK_VALIDATE_SIGNATURE deve ser true em producao.")
+        if self.password_encryption_required and not self.password_encryption_private_key.strip():
+            raise RuntimeError("PASSWORD_ENCRYPTION_PRIVATE_KEY deve ser configurada quando PASSWORD_ENCRYPTION_REQUIRED=true.")
         payments_enabled = self.payments_provider.strip().lower() == "mercadopago" and not self.payments_mock_mode
         mercado_pago_configured = bool(self.mercado_pago_access_token.strip())
         if payments_enabled and mercado_pago_configured and not self.mercado_pago_webhook_secret.strip():

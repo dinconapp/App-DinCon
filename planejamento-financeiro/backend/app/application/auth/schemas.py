@@ -21,7 +21,7 @@ class RegisterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     email: str = Field(min_length=3, max_length=180)
     phone: str = Field(min_length=11, max_length=30)
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=6, max_length=4096)
 
     @field_validator("email")
     @classmethod
@@ -55,7 +55,7 @@ class ResendEmailCodeRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     email: str = Field(min_length=3, max_length=180)
-    password: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=4096)
 
     @field_validator("email")
     @classmethod
@@ -75,7 +75,7 @@ class PasswordResetStartRequest(BaseModel):
 class PasswordResetConfirmRequest(BaseModel):
     email: str = Field(min_length=3, max_length=180)
     code: str = Field(min_length=1, max_length=20)
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=6, max_length=4096)
 
     @field_validator("email")
     @classmethod
