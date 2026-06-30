@@ -81,7 +81,9 @@ class Settings(BaseSettings):
             raise RuntimeError("JWT_SECRET_KEY deve ser forte e ter pelo menos 32 caracteres em producao.")
         if not self.twilio_webhook_validate_signature:
             raise RuntimeError("TWILIO_WEBHOOK_VALIDATE_SIGNATURE deve ser true em producao.")
-        if not self.mercado_pago_webhook_secret.strip():
+        payments_enabled = self.payments_provider.strip().lower() == "mercadopago" and not self.payments_mock_mode
+        mercado_pago_configured = bool(self.mercado_pago_access_token.strip())
+        if payments_enabled and mercado_pago_configured and not self.mercado_pago_webhook_secret.strip():
             raise RuntimeError("MERCADO_PAGO_WEBHOOK_SECRET deve ser configurado em producao.")
 
     class Config:

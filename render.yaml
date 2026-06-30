@@ -8,3 +8,12 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     plan: starter
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: CORS_ORIGINS
+        value: https://dincon.com.br,https://www.dincon.com.br
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: TWILIO_WEBHOOK_VALIDATE_SIGNATURE
+        value: "true"
