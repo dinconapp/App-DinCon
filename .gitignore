@@ -17,6 +17,7 @@
 !.env.compose.example
 !.env.database.example
 !**/.env.example
+!**/.env.local.example
 !**/.env.production.example
 !**/.env.render.example
 !**/.env.vercel.example
@@ -28,6 +29,7 @@ backend/.env.*
 frontend/.env
 frontend/.env.*
 !frontend/.env.example
+!frontend/.env.local.example
 !frontend/.env.production.example
 !frontend/.env.vercel.example
 
