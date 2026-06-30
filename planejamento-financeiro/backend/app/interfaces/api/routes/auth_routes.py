@@ -7,6 +7,7 @@ from app.application.auth.schemas import AuthTokenResponse, LoginRequest, Passwo
 from app.application.auth.use_cases import AuthUseCases
 from app.core.database import get_db
 from app.domain.auth.services import AuthError
+from app.infrastructure.auth.jwt_provider import JwtProvider
 from app.infrastructure.auth.password_hasher import PasswordHasher
 from app.infrastructure.auth.password_cipher import PasswordCipher
 from app.infrastructure.verification.twilio_email_verify_provider import TwilioEmailVerifyProvider
@@ -40,7 +41,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         auth_error(exc)
     except Exception:
         logger.exception("auth.register.unhandled")
-        raise
+        raise HTTPException(status_code=500, detail={"status": "internal_error", "message": "Erro interno do servidor."})
 
 
 @router.post("/verify-email")
@@ -51,7 +52,7 @@ def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)):
         auth_error(exc)
     except Exception:
         logger.exception("auth.verify_sms.unhandled")
-        raise
+        raise HTTPException(status_code=500, detail={"status": "internal_error", "message": "Erro interno do servidor."})
 
 
 @router.post("/resend-email-code")
@@ -62,7 +63,7 @@ def resend_email_code(payload: ResendEmailCodeRequest, db: Session = Depends(get
         auth_error(exc)
     except Exception:
         logger.exception("auth.resend_sms.unhandled")
-        raise
+        raise HTTPException(status_code=500, detail={"status": "internal_error", "message": "Erro interno do servidor."})
 
 
 @router.post("/login", response_model=AuthTokenResponse)
@@ -73,7 +74,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         auth_error(exc)
     except Exception:
         logger.exception("auth.login.unhandled")
-        raise
+        raise HTTPException(status_code=500, detail={"status": "internal_error", "message": "Erro interno do servidor."})
 
 
 @router.post("/password-reset/start")
@@ -84,7 +85,7 @@ def password_reset_start(payload: PasswordResetStartRequest, db: Session = Depen
         auth_error(exc)
     except Exception:
         logger.exception("auth.password_reset_start.unhandled")
-        raise
+        raise HTTPException(status_code=500, detail={"status": "internal_error", "message": "Erro interno do servidor."})
 
 
 @router.post("/password-reset/confirm")
@@ -95,7 +96,7 @@ def password_reset_confirm(payload: PasswordResetConfirmRequest, db: Session = D
         auth_error(exc)
     except Exception:
         logger.exception("auth.password_reset_confirm.unhandled")
-        raise
+        raise HTTPException(status_code=500, detail={"status": "internal_error", "message": "Erro interno do servidor."})
 
 
 @router.get("/me", response_model=UserAuthResponse)
@@ -104,4 +105,4 @@ def me(user_id: str = Depends(require_auth_user), db: Session = Depends(get_db))
         return use_cases(db).me(user_id)
     except Exception:
         logger.exception("auth.me.unhandled")
-        raise
+        raise HTTPException(status_code=500, detail={"status": "internal_error", "message": "Erro interno do servidor."})
