@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.infrastructure.ai.audio_transcriber import AudioTranscriber
 from app.infrastructure.ai.transaction_interpreter import TransactionInterpreter
 from app.infrastructure.whatsapp.providers.twilio_provider import TwilioWhatsAppProvider
-from app.interfaces.api.dependencies import repositories
+from app.interfaces.api.dependencies import assert_user_access, repositories, require_auth_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/integrations/whatsapp", tags=["whatsapp"])
@@ -59,24 +59,28 @@ async def twilio_status(request: Request):
 
 
 @router.get("/accounts", response_model=list[WhatsAppAccountOut])
-def list_accounts(user_id: str = Query(...), db: Session = Depends(get_db)):
+def list_accounts(user_id: str = Query(...), db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
+    assert_user_access(user_id, authenticated_user_id)
     repos = repositories(db)
     return WhatsAppAccountUseCases(repos["whatsapp_accounts"], repos["users"]).list(user_id)
 
 
 @router.post("/accounts", response_model=WhatsAppAccountOut)
-def create_account(payload: WhatsAppAccountCreate, db: Session = Depends(get_db)):
+def create_account(payload: WhatsAppAccountCreate, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
+    assert_user_access(payload.user_id, authenticated_user_id)
     repos = repositories(db)
     return WhatsAppAccountUseCases(repos["whatsapp_accounts"], repos["users"]).create(payload)
 
 
 @router.delete("/accounts/{account_id}")
-def delete_account(account_id: str, db: Session = Depends(get_db)):
+def delete_account(account_id: str, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
     repos = repositories(db)
+    assert_user_access(repos["whatsapp_accounts"].get(account_id).user_id, authenticated_user_id)
     return WhatsAppAccountUseCases(repos["whatsapp_accounts"], repos["users"]).deactivate(account_id)
 
 
 @router.get("/drafts", response_model=list[WhatsAppTransactionDraftOut])
-def list_drafts(user_id: str = Query(...), status: str | None = Query(default=None), db: Session = Depends(get_db)):
+def list_drafts(user_id: str = Query(...), status: str | None = Query(default=None), db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
+    assert_user_access(user_id, authenticated_user_id)
     repos = repositories(db)
     return WhatsAppDraftUseCases(repos["whatsapp_drafts"], repos["users"]).list(user_id, status)

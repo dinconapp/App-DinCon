@@ -72,6 +72,18 @@ class Settings(BaseSettings):
         local_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
         return list(dict.fromkeys([*configured, *local_origins]))
 
+    def validate_runtime_security(self) -> None:
+        if not self.is_production:
+            return
+        if not self.allowed_cors_origins:
+            raise RuntimeError("CORS_ORIGINS deve ser configurado explicitamente em producao.")
+        if self.jwt_secret_key.strip() == "change-me" or len(self.jwt_secret_key.strip()) < 32:
+            raise RuntimeError("JWT_SECRET_KEY deve ser forte e ter pelo menos 32 caracteres em producao.")
+        if not self.twilio_webhook_validate_signature:
+            raise RuntimeError("TWILIO_WEBHOOK_VALIDATE_SIGNATURE deve ser true em producao.")
+        if not self.mercado_pago_webhook_secret.strip():
+            raise RuntimeError("MERCADO_PAGO_WEBHOOK_SECRET deve ser configurado em producao.")
+
     class Config:
         env_file = ".env"
         populate_by_name = True

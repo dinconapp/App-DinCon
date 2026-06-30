@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.core.exceptions import BusinessRuleError
 from app.domain.bills.services import payable_budgets
 from app.domain.shared import due_date
-from app.interfaces.api.dependencies import repositories
+from app.interfaces.api.dependencies import assert_user_access, repositories, require_auth_user
 
 router = APIRouter(prefix="/bills", tags=["bills"])
 
@@ -29,7 +29,13 @@ def _bill_row(budget, paid: bool):
 
 
 @router.get("")
-def list_bills(user_id: str = Query(...), month_key: str = Query(..., pattern=r"^\d{4}-\d{2}$"), db: Session = Depends(get_db)):
+def list_bills(
+    user_id: str = Query(...),
+    month_key: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
+    db: Session = Depends(get_db),
+    authenticated_user_id: str = Depends(require_auth_user),
+):
+    assert_user_access(user_id, authenticated_user_id)
     repos = repositories(db)
     budgets = payable_budgets(repos["budgets"].list_by_user(user_id), month_key)
     transactions = repos["transactions"].list_by_user_month(user_id, month_key)
@@ -42,9 +48,11 @@ def list_bills(user_id: str = Query(...), month_key: str = Query(..., pattern=r"
 
 
 @router.post("/{budget_id}/pay")
-def pay_bill(budget_id: str, payload: BillAction, db: Session = Depends(get_db)):
+def pay_bill(budget_id: str, payload: BillAction, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
+    assert_user_access(payload.user_id, authenticated_user_id)
     repos = repositories(db)
     budget = repos["budgets"].get(budget_id)
+    assert_user_access(budget.user_id, authenticated_user_id)
     if not budget.has_due_date or budget.kind != "expense":
         raise BusinessRuleError("Este planejamento nao e uma conta pagavel.")
     repos["transactions"].delete_paid_bill(payload.user_id, budget_id, payload.month_key)
@@ -62,16 +70,20 @@ def pay_bill(budget_id: str, payload: BillAction, db: Session = Depends(get_db))
 
 
 @router.post("/{budget_id}/unpay")
-def unpay_bill(budget_id: str, payload: BillAction, db: Session = Depends(get_db)):
+def unpay_bill(budget_id: str, payload: BillAction, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
+    assert_user_access(payload.user_id, authenticated_user_id)
     repos = repositories(db)
+    assert_user_access(repos["budgets"].get(budget_id).user_id, authenticated_user_id)
     repos["transactions"].delete_paid_bill(payload.user_id, budget_id, payload.month_key)
     return {"paid": False}
 
 
 @router.post("/{budget_id}/receive")
-def receive_income(budget_id: str, payload: BillAction, db: Session = Depends(get_db)):
+def receive_income(budget_id: str, payload: BillAction, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
+    assert_user_access(payload.user_id, authenticated_user_id)
     repos = repositories(db)
     budget = repos["budgets"].get(budget_id)
+    assert_user_access(budget.user_id, authenticated_user_id)
     if budget.kind != "income":
         raise BusinessRuleError("Este planejamento nao e uma entrada recebivel.")
     repos["transactions"].delete_paid_bill(payload.user_id, budget_id, payload.month_key)
@@ -90,9 +102,11 @@ def receive_income(budget_id: str, payload: BillAction, db: Session = Depends(ge
 
 
 @router.post("/{budget_id}/unreceive")
-def unreceive_income(budget_id: str, payload: BillAction, db: Session = Depends(get_db)):
+def unreceive_income(budget_id: str, payload: BillAction, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
+    assert_user_access(payload.user_id, authenticated_user_id)
     repos = repositories(db)
     budget = repos["budgets"].get(budget_id)
+    assert_user_access(budget.user_id, authenticated_user_id)
     if budget.kind != "income":
         raise BusinessRuleError("Este planejamento nao e uma entrada recebivel.")
     repos["transactions"].delete_paid_bill(payload.user_id, budget_id, payload.month_key)

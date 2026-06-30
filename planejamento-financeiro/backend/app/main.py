@@ -26,6 +26,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 settings = get_settings()
+settings.validate_runtime_security()
 
 app = FastAPI(title="Planejamento Financeiro API", version="1.0.0")
 

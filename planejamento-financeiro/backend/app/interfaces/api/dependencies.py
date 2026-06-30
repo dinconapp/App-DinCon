@@ -1,5 +1,7 @@
+from fastapi import Header, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.infrastructure.auth.jwt_provider import JwtProvider
 from app.infrastructure.db.repositories.billing_repository_sqlalchemy import SqlAlchemyBillingRepository
 from app.infrastructure.db.repositories.auth_user_repository_sqlalchemy import SqlAlchemyAuthUserRepository
 from app.infrastructure.db.repositories.budget_repository_sqlalchemy import SqlAlchemyBudgetRepository
@@ -27,3 +29,16 @@ def repositories(db: Session):
         "whatsapp_messages": SqlAlchemyWhatsAppMessageRepository(db),
         "whatsapp_drafts": SqlAlchemyWhatsAppTransactionDraftRepository(db),
     }
+
+
+def require_auth_user(authorization: str | None = Header(default=None)) -> str:
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    user_id = JwtProvider().subject(token) if token else None
+    if not user_id:
+        raise HTTPException(status_code=401, detail={"status": "invalid_token", "message": "Token invalido ou ausente."})
+    return user_id
+
+
+def assert_user_access(requested_user_id: str, authenticated_user_id: str) -> None:
+    if requested_user_id != authenticated_user_id:
+        raise HTTPException(status_code=403, detail={"status": "forbidden", "message": "Acesso negado para este usuario."})

@@ -1,16 +1,15 @@
 import logging
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.application.auth.schemas import AuthTokenResponse, LoginRequest, PasswordResetConfirmRequest, PasswordResetStartRequest, RegisterRequest, ResendEmailCodeRequest, UserAuthResponse, VerifyEmailRequest
 from app.application.auth.use_cases import AuthUseCases
 from app.core.database import get_db
 from app.domain.auth.services import AuthError
-from app.infrastructure.auth.jwt_provider import JwtProvider
 from app.infrastructure.auth.password_hasher import PasswordHasher
 from app.infrastructure.verification.twilio_email_verify_provider import TwilioEmailVerifyProvider
-from app.interfaces.api.dependencies import repositories
+from app.interfaces.api.dependencies import repositories, require_auth_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -98,11 +97,7 @@ def password_reset_confirm(payload: PasswordResetConfirmRequest, db: Session = D
 
 
 @router.get("/me", response_model=UserAuthResponse)
-def me(authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
-    token = (authorization or "").removeprefix("Bearer ").strip()
-    user_id = JwtProvider().subject(token) if token else None
-    if not user_id:
-        raise HTTPException(status_code=401, detail={"status": "invalid_token", "message": "Token invalido ou ausente."})
+def me(user_id: str = Depends(require_auth_user), db: Session = Depends(get_db)):
     try:
         return use_cases(db).me(user_id)
     except Exception:
