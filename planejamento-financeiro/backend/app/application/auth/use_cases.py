@@ -19,6 +19,7 @@ class AuthUseCases:
     def register(self, payload):
         email = normalize_email(str(payload.email))
         phone = payload.phone
+        logger.info("auth.register.started email=%s", email)
         user = self.users.get_by_email_or_none(email)
         if user and user.email_verified:
             raise AuthError("Este e-mail ja esta cadastrado.", "email_already_registered", 409)
@@ -38,6 +39,7 @@ class AuthUseCases:
                 "initial_balance": 0,
                 "base_month": date.today().strftime("%Y-%m"),
             })
+            logger.info("auth.register.user_created user_id=%s email=%s", user.id, email)
         else:
             user = self.users.update(user.id, {
                 "name": payload.name.strip(),
@@ -49,7 +51,9 @@ class AuthUseCases:
                 "verification_started_at": now,
                 "initial": user_initial(payload.name),
             })
+            logger.info("auth.register.user_updated user_id=%s email=%s", user.id, email)
 
+        logger.info("auth.register.verify_sms.started user_id=%s email=%s", user.id, email)
         result = self.verify.start_sms_verification(phone)
         logger.info("auth.verify.registration.sms_sent user_id=%s email=%s phone=...%s status=%s", user.id, email, phone[-4:], result.status)
         self._record_attempt({
@@ -64,6 +68,7 @@ class AuthUseCases:
             "created_at": now,
             "updated_at": now,
         })
+        logger.info("auth.register.completed user_id=%s email=%s status=%s", user.id, email, result.status)
         return {
             "status": "verification_pending",
             "message": "Cadastro iniciado. Enviamos um codigo de verificacao por SMS.",
@@ -92,6 +97,7 @@ class AuthUseCases:
             })
             if attempt:
                 self._update_attempt(attempt.id, {"status": "approved", "updated_at": now})
+            logger.info("auth.verify_email.completed user_id=%s email=%s status=approved", user.id, email)
             return {"status": "approved", "message": "Celular verificado com sucesso. Voce ja pode acessar o DinCon."}
 
         if attempt:
@@ -177,6 +183,7 @@ class AuthUseCases:
         })
         if attempt:
             self._update_attempt(attempt.id, {"status": "approved", "updated_at": now})
+        logger.info("auth.password_reset.completed user_id=%s email=%s status=approved", user.id, email)
         return {"status": "approved", "message": "Senha redefinida com sucesso. Voce ja pode entrar."}
 
     def login(self, payload):
@@ -188,6 +195,7 @@ class AuthUseCases:
         if not user.active or not user.email_verified:
             raise AuthError("Seu celular ainda nao foi verificado por SMS. Informe o codigo enviado ou solicite um novo.", "email_not_verified", 403)
         self.users.update(user.id, {"last_login_at": datetime.utcnow()})
+        logger.info("auth.login.completed user_id=%s email=%s", user.id, email)
         return {
             "access_token": self.jwt.create_access_token(user.id),
             "token_type": "bearer",

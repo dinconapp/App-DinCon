@@ -37,6 +37,12 @@ function writeSession(user: AuthUser) {
 }
 
 export function authErrorMessage(error: unknown, fallback: string) {
+  const code = typeof error === "object" && error !== null && "code" in error ? (error as { code?: string }).code : null;
+  const message = typeof error === "object" && error !== null && "message" in error ? (error as { message?: string }).message : null;
+  const isTimeout = code === "ECONNABORTED" || code === "ERR_CANCELED" || (typeof message === "string" && /timeout/i.test(message));
+  if (isTimeout) {
+    return "Servidor demorou para responder. Tente novamente em alguns segundos.";
+  }
   const detail = typeof error === "object" && error !== null && "response" in error
     ? (error as { response?: { data?: { detail?: string | { message?: string } } } }).response?.data?.detail
     : null;
@@ -58,7 +64,7 @@ export async function signUp(name: string, email: string, phone: string, passwor
     email: email.trim().toLowerCase(),
     phone: phone.trim(),
     password: await encryptPassword(password),
-  });
+  }, { timeout: 45000 });
   return data;
 }
 
@@ -66,21 +72,21 @@ export async function verifyEmail(email: string, code: string) {
   const { data } = await api.post<{ status: string; message: string }>("/auth/verify-email", {
     email: email.trim().toLowerCase(),
     code: code.trim(),
-  });
+  }, { timeout: 30000 });
   return data;
 }
 
 export async function resendEmailCode(email: string) {
   const { data } = await api.post<{ status: string; message: string }>("/auth/resend-email-code", {
     email: email.trim().toLowerCase(),
-  });
+  }, { timeout: 30000 });
   return data;
 }
 
 export async function startPasswordReset(email: string) {
   const { data } = await api.post<{ status: string; message: string }>("/auth/password-reset/start", {
     email: email.trim().toLowerCase(),
-  });
+  }, { timeout: 45000 });
   return data;
 }
 
@@ -89,7 +95,7 @@ export async function confirmPasswordReset(email: string, code: string, password
     email: email.trim().toLowerCase(),
     code: code.trim(),
     password: await encryptPassword(password),
-  });
+  }, { timeout: 30000 });
   return data;
 }
 
@@ -97,7 +103,7 @@ export async function signIn(email: string, password: string) {
   const { data } = await api.post<{ access_token: string; token_type: string; user: AuthUser }>("/auth/login", {
     email: email.trim().toLowerCase(),
     password: await encryptPassword(password),
-  });
+  }, { timeout: 30000 });
   const session = { ...data.user, access_token: data.access_token };
   writeSession(session);
   return session;

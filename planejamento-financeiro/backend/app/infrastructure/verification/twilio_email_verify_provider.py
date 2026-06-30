@@ -1,6 +1,7 @@
 import logging
 
 from twilio.base.exceptions import TwilioRestException
+from twilio.http.http_client import TwilioHttpClient
 from twilio.rest import Client
 
 from app.core.config import get_settings
@@ -11,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class TwilioEmailVerifyProvider:
+    request_timeout_seconds = 20.0
+
     def __init__(self):
         self.settings = get_settings()
 
@@ -19,7 +22,11 @@ class TwilioEmailVerifyProvider:
             raise AuthError("Twilio nao esta configurado para enviar verificacao por SMS.", "verify_not_configured", 503)
         if not self.settings.twilio_verify_service_sid:
             raise AuthError("Twilio Verify Service SID nao configurado.", "verify_not_configured", 503)
-        return Client(self.settings.twilio_account_sid, self.settings.twilio_auth_token)
+        return Client(
+            self.settings.twilio_account_sid,
+            self.settings.twilio_auth_token,
+            http_client=TwilioHttpClient(timeout=self.request_timeout_seconds),
+        )
 
     def start_email_verification(self, email: str) -> VerifyStartResult:
         return self.start_sms_verification(email)
@@ -39,6 +46,9 @@ class TwilioEmailVerifyProvider:
         except TwilioRestException as exc:
             logger.warning("twilio.verify.sms.start.failed phone=%s code=%s status=%s", _mask_phone(to), exc.code, exc.status)
             raise AuthError(_friendly_twilio_message(exc), "verify_provider_error", 503)
+        except Exception:
+            logger.exception("twilio.verify.sms.start.failed phone=%s", _mask_phone(to))
+            raise AuthError("Nao foi possivel enviar ou validar o codigo de verificacao. Tente novamente.", "verify_provider_error", 503)
 
     def check_sms_verification(self, phone_number: str, code: str) -> VerifyCheckResult:
         to = normalize_verify_phone(phone_number)
@@ -53,6 +63,9 @@ class TwilioEmailVerifyProvider:
         except TwilioRestException as exc:
             logger.warning("twilio.verify.sms.check.failed phone=%s code=%s status=%s", _mask_phone(to), exc.code, exc.status)
             raise AuthError(_friendly_twilio_message(exc), "invalid_or_expired_code", 400)
+        except Exception:
+            logger.exception("twilio.verify.sms.check.failed phone=%s", _mask_phone(to))
+            raise AuthError("Nao foi possivel enviar ou validar o codigo de verificacao. Tente novamente.", "verify_provider_error", 503)
 
 
 def _mask_email(email: str) -> str:
