@@ -7,33 +7,27 @@ PIX_EXPIRATION_SECONDS = PIX_EXPIRATION_MINUTES * 60
 PLAN_DEFINITIONS = [
     {
         "code": "free",
-        "name": "Gratis",
-        "description": "Plano inicial para organizar o planejamento financeiro.",
+        "name": "Plano Gratuito",
+        "description": "Use a plataforma Din Con com todas as funcionalidades principais.",
         "price_cents": 0,
         "features": ["Dashboard", "Planejamento", "Transacoes", "Cofrinho"],
     },
     {
         "code": "pro",
-        "name": "Pro",
-        "description": "Recursos avancados de IA, WhatsApp e organizacao recorrente.",
+        "name": "Plano WhatsApp",
+        "description": "Use todos os recursos da plataforma e registre movimentacoes pelo WhatsApp.",
         "price_cents": 2990,
-        "features": ["Tudo do Gratis", "WhatsApp com IA", "Projecoes", "Historico de pagamentos"],
-    },
-    {
-        "code": "premium",
-        "name": "Premium",
-        "description": "Mais capacidade para uso recorrente e automacoes financeiras.",
-        "price_cents": 5990,
-        "features": ["Tudo do Pro", "Maior volume de uso", "Recursos premium futuros"],
+        "features": ["Tudo do Plano Gratuito", "WhatsApp com IA", "WhatsApps autorizados", "Historico de pagamentos"],
     },
 ]
 
 
 class BillingError(Exception):
-    def __init__(self, message: str, status_code: int = 400):
+    def __init__(self, message: str, status_code: int = 400, code: str | None = None):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
+        self.code = code
 
 
 def payment_expires_at() -> datetime:
@@ -58,8 +52,10 @@ def map_provider_status(status: str | None) -> str:
         return "pending"
     if value == "expired":
         return "expired"
-    if value in {"rejected", "cancelled", "canceled", "refunded", "charged_back"}:
+    if value in {"rejected", "cancelled", "canceled"}:
         return "failed"
+    if value in {"refunded", "charged_back"}:
+        return value
     return "pending"
 
 

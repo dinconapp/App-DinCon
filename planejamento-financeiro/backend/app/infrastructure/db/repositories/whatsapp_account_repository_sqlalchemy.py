@@ -39,12 +39,21 @@ class SqlAlchemyWhatsAppAccountRepository:
             raise BusinessRuleError("Este WhatsApp ja esta vinculado a outro usuario.")
         if existing:
             existing.active = True
+            existing.alias = data.get("alias") or existing.alias or "Principal"
             existing.provider_identity = data.get("provider_identity")
             self.db.commit()
             self.db.refresh(existing)
             return existing
         account = WhatsAppAccountModel(**data)
         self.db.add(account)
+        self.db.commit()
+        self.db.refresh(account)
+        return account
+
+    def update(self, account_id: str, data: dict):
+        account = self.get(account_id)
+        for key, value in data.items():
+            setattr(account, key, value)
         self.db.commit()
         self.db.refresh(account)
         return account

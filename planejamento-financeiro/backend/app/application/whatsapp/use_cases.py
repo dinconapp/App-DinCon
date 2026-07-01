@@ -3,14 +3,15 @@ from datetime import date
 from pathlib import Path
 from app.application.categories.use_cases import CategoryUseCases
 from app.application.common import model_to_dict
-from app.domain.whatsapp.services import classify_confirmation_reply, normalize_phone
+from app.core.exceptions import BusinessRuleError
+from app.domain.whatsapp.services import classify_confirmation_reply, normalize_phone, normalize_phone_e164
 from app.infrastructure.ai.audio_transcriber import AudioTranscriptionError
 from app.infrastructure.ai.transaction_interpreter import AIConfigurationError, TransactionInterpretationError
 from app.infrastructure.whatsapp.providers.twilio_provider import TwilioMediaTooLargeError
 
 logger = logging.getLogger(__name__)
 
-ACCOUNT_FIELDS = ["id", "user_id", "phone_number", "provider", "provider_identity", "active", "created_at", "updated_at"]
+ACCOUNT_FIELDS = ["id", "user_id", "phone_number", "phone_number_e164", "alias", "provider", "provider_identity", "active", "created_at", "updated_at"]
 DRAFT_FIELDS = [
     "id", "user_id", "whatsapp_message_id", "status", "kind", "title", "amount", "category_id",
     "transaction_date", "confidence", "ai_explanation", "original_text", "created_transaction_id", "created_at", "updated_at",
@@ -31,8 +32,19 @@ def mask_phone(phone: str | None) -> str:
     return f"...{phone[-4:]}" if len(phone) > 4 else "..."
 
 
+def mask_phone_number(phone: str | None) -> str:
+    if not phone:
+        return ""
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if len(digits) <= 4:
+        return phone
+    return f"+{digits[:2]} {digits[2:4]} *****-{digits[-4:]}"
+
+
 def serialize_account(account):
-    return model_to_dict(account, ACCOUNT_FIELDS)
+    data = model_to_dict(account, ACCOUNT_FIELDS)
+    data["phone_number_masked"] = mask_phone_number(getattr(account, "phone_number_e164", None) or getattr(account, "phone_number", None))
+    return data
 
 
 def serialize_draft(draft):
@@ -40,9 +52,18 @@ def serialize_draft(draft):
 
 
 class WhatsAppAccountUseCases:
-    def __init__(self, accounts, users):
+    def __init__(self, accounts, users, billing):
         self.accounts = accounts
         self.users = users
+        self.billing = billing
+
+    def _require_whatsapp_plan(self, user_id: str):
+        subscription = getattr(self.billing, "active_subscription_by_user", None)
+        if callable(subscription):
+            active = subscription(user_id)
+            if active and getattr(active, "plan", None) and active.plan.code == "pro":
+                return active
+        raise BusinessRuleError("O uso pelo WhatsApp está disponível no Plano WhatsApp.")
 
     def list(self, user_id: str):
         self.users.get(user_id)
@@ -50,15 +71,37 @@ class WhatsAppAccountUseCases:
 
     def create(self, payload):
         self.users.get(payload.user_id)
+        self._require_whatsapp_plan(payload.user_id)
+        phone_number = normalize_phone(payload.phone_number)
         account = self.accounts.create({
             "user_id": payload.user_id,
-            "phone_number": normalize_phone(payload.phone_number),
+            "phone_number": phone_number,
+            "phone_number_e164": normalize_phone_e164(payload.phone_number),
+            "alias": payload.alias or "Principal",
             "provider": payload.provider,
             "provider_identity": None,
         })
         return serialize_account(account)
 
+    def update(self, account_id: str, payload):
+        account = self.accounts.get(account_id)
+        self.users.get(account.user_id)
+        self._require_whatsapp_plan(account.user_id)
+        data = {}
+        if payload.alias is not None:
+            data["alias"] = payload.alias or account.alias or "Principal"
+        if payload.phone_number is not None:
+            data["phone_number"] = normalize_phone(payload.phone_number)
+            data["phone_number_e164"] = normalize_phone_e164(payload.phone_number)
+        if payload.active is not None:
+            data["active"] = payload.active
+        updated = self.accounts.update(account_id, data)
+        return serialize_account(updated)
+
     def deactivate(self, account_id: str):
+        account = self.accounts.get(account_id)
+        self.users.get(account.user_id)
+        self._require_whatsapp_plan(account.user_id)
         self.accounts.deactivate(account_id)
         return {"deleted": True}
 
@@ -74,15 +117,24 @@ class WhatsAppDraftUseCases:
 
 
 class WhatsAppWebhookUseCases:
-    def __init__(self, accounts, messages, drafts, transactions, categories, provider, interpreter, transcriber):
+    def __init__(self, accounts, messages, drafts, transactions, categories, billing, provider, interpreter, transcriber):
         self.accounts = accounts
         self.messages = messages
         self.drafts = drafts
         self.transactions = transactions
         self.categories = categories
+        self.billing = billing
         self.provider = provider
         self.interpreter = interpreter
         self.transcriber = transcriber
+
+    def _whatsapp_plan_active(self, user_id: str) -> bool:
+        getter = getattr(self.billing, "active_subscription_by_user", None)
+        if callable(getter):
+            subscription = getter(user_id)
+            if subscription and getattr(subscription, "plan", None) and subscription.plan.code == "pro":
+                return True
+        return False
 
     def handle_twilio_webhook(self, form: dict) -> str:
         incoming = self.provider.parse_webhook(form)
@@ -118,7 +170,31 @@ class WhatsAppWebhookUseCases:
                 "media_content_type": incoming.media_content_type,
                 "raw_payload": incoming.raw_payload,
             })
-            return self.provider.twiml_response("Este WhatsApp ainda nao esta vinculado a uma conta. Acesse o sistema DinCon e vincule seu numero no Perfil.")
+            return self.provider.twiml_response("Este numero ainda nao esta autorizado na Din Con. Peça ao responsavel da conta para adiciona-lo.")
+
+        if not self._whatsapp_plan_active(account.user_id):
+            logger.warning(
+                "whatsapp.plan.inactive provider=%s account_id=%s user_id=%s from=%s",
+                self.provider.provider_name,
+                account.id,
+                account.user_id,
+                mask_phone(incoming.from_number),
+            )
+            self.messages.create({
+                "user_id": account.user_id,
+                "whatsapp_account_id": account.id,
+                "provider": self.provider.provider_name,
+                "provider_message_id": incoming.provider_message_id,
+                "direction": "inbound",
+                "message_type": incoming.message_type,
+                "from_number": incoming.from_number,
+                "to_number": incoming.to_number,
+                "body": incoming.body,
+                "media_url": incoming.media_url,
+                "media_content_type": incoming.media_content_type,
+                "raw_payload": incoming.raw_payload,
+            })
+            return self.provider.twiml_response("O uso pelo WhatsApp está disponível no Plano WhatsApp.")
 
         logger.info(
             "whatsapp.account.found provider=%s account_id=%s user_id=%s from=%s",
@@ -252,6 +328,10 @@ class WhatsAppWebhookUseCases:
                 "amount": draft.amount,
                 "transaction_date": draft.transaction_date,
                 "status": "paid",
+                "source": "whatsapp",
+                "whatsapp_account_id": getattr(getattr(draft, "whatsapp_message", None), "whatsapp_account_id", None),
+                "whatsapp_alias": getattr(getattr(getattr(draft, "whatsapp_message", None), "whatsapp_account", None), "alias", None),
+                "provider_message_id": getattr(getattr(draft, "whatsapp_message", None), "provider_message_id", None),
             })
             self.drafts.update(draft.id, {"status": "confirmed", "created_transaction_id": transaction.id})
             logger.info(

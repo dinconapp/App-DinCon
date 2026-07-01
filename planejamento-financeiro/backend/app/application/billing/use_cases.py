@@ -37,6 +37,7 @@ def serialize_plan(plan):
         "currency": plan.currency,
         "billing_interval": plan.billing_interval,
         "features": plan.features or [],
+        "whatsapp_enabled": plan.code == "pro",
     }
 
 
@@ -70,6 +71,19 @@ def serialize_payment(payment):
     }
 
 
+def serialize_business_payment(payment):
+    return {
+        "id": payment.id,
+        "plan_name": payment.plan.name if getattr(payment, "plan", None) else "Plano",
+        "amount_cents": payment.amount_cents,
+        "payment_method": payment.payment_method,
+        "payment_method_label": "Pix" if payment.payment_method == "pix" else "Cartão",
+        "approved_at": dt(payment.paid_at),
+        "valid_until": dt(payment.subscription.current_period_end) if getattr(payment, "subscription", None) else None,
+        "status": "approved",
+    }
+
+
 def serialize_subscription(subscription):
     if not subscription:
         return None
@@ -82,6 +96,21 @@ def serialize_subscription(subscription):
         "current_period_start": dt(subscription.current_period_start),
         "current_period_end": dt(subscription.current_period_end),
         "cancel_at_period_end": subscription.cancel_at_period_end,
+    }
+
+
+def serialize_business_subscription(subscription):
+    if not subscription:
+        return None
+    return {
+        "id": subscription.id,
+        "plan_id": subscription.plan_id,
+        "plan_code": subscription.plan.code if getattr(subscription, "plan", None) else None,
+        "plan_name": subscription.plan.name if getattr(subscription, "plan", None) else None,
+        "status": subscription.status,
+        "current_period_start": dt(subscription.current_period_start),
+        "current_period_end": dt(subscription.current_period_end),
+        "valid_until": dt(subscription.current_period_end),
     }
 
 
@@ -110,14 +139,26 @@ class BillingUseCases:
     def user_billing(self, user_id: str):
         self.users.get(user_id)
         self._expire_overdue_pix_payments(user_id)
+        subscription = self._current_subscription(user_id)
+        current_plan = subscription.plan if subscription and getattr(subscription, "plan", None) else self.billing.get_plan_by_code("free")
+        approved_payments = [serialize_business_payment(payment) for payment in self.billing.list_approved_payments_by_user(user_id)]
         return {
-            "subscription": serialize_subscription(self.billing.latest_subscription_by_user(user_id)),
-            "payments": [serialize_payment(payment) for payment in self.billing.list_payments_by_user(user_id)],
+            "current_plan": serialize_plan(current_plan),
+            "plan_name": current_plan.name,
+            "has_active_subscription": bool(subscription),
+            "whatsapp_enabled": current_plan.code == "pro",
+            "valid_until": dt(subscription.current_period_end) if subscription else None,
+            "can_purchase": not bool(subscription),
+            "can_renew_early": bool(subscription and current_plan.code == "pro"),
+            "subscription": serialize_business_subscription(subscription),
+            "payments": approved_payments,
+            "approved_payments": approved_payments,
         }
 
-    def create_pix_checkout(self, user_id: str, plan_code: str):
+    def create_pix_checkout(self, user_id: str, plan_code: str, renewal: bool = False):
         user = self.users.get(user_id)
         plan = self.billing.get_plan_by_code(plan_code)
+        self._assert_purchase_allowed(user_id, plan, renewal)
         self._expire_overdue_pix_payments(user_id)
         payment = self._create_pending_payment(user, plan, "pix")
         if self._use_mock_mode():
@@ -136,6 +177,7 @@ class BillingUseCases:
     def create_card_checkout(self, payload):
         user = self.users.get(payload.user_id)
         plan = self.billing.get_plan_by_code(payload.plan_code)
+        self._assert_purchase_allowed(payload.user_id, plan, bool(getattr(payload, "renewal", False)))
         payment = self._create_pending_payment(user, plan, "card")
         if self._use_mock_mode() or payload.mock:
             payment = self.billing.update_payment(payment.id, {
@@ -255,6 +297,28 @@ class BillingUseCases:
             "sandbox": not self.settings.is_production,
             "expires_at": expires_at,
         })
+
+    def _assert_purchase_allowed(self, user_id: str, plan, renewal: bool):
+        if plan.code == "free":
+            raise BillingError("Plano gratuito nao gera cobranca.", 400, code="free_plan_no_checkout")
+        subscription = self._current_subscription(user_id)
+        if subscription and not renewal:
+            raise BillingError("Usuário já possui plano vigente.", 409, code="active_subscription_exists")
+
+    def _current_subscription(self, user_id: str):
+        getter = getattr(self.billing, "active_subscription_by_user", None)
+        if callable(getter):
+            subscription = getter(user_id)
+            if subscription:
+                if not subscription.current_period_end or subscription.current_period_end > utcnow_naive():
+                    return subscription
+        latest_getter = getattr(self.billing, "latest_subscription_by_user", None)
+        latest = latest_getter(user_id) if callable(latest_getter) else None
+        if not latest or latest.status != "active":
+            return None
+        if latest.current_period_end and latest.current_period_end <= utcnow_naive():
+            return None
+        return latest
 
     def _mercadopago_payload(self, user, plan, payment, payment_method_id: str, **kwargs):
         email = self._clean_text(kwargs.get("email")) or self._clean_text(getattr(user, "email", None)) or f"{user.id}@dincon.local"

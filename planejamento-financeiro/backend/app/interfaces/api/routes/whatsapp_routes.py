@@ -1,11 +1,12 @@
 import logging
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
-from app.application.whatsapp.schemas import WhatsAppAccountCreate, WhatsAppAccountOut, WhatsAppTransactionDraftOut
+from app.application.whatsapp.schemas import WhatsAppAccountCreate, WhatsAppAccountOut, WhatsAppAccountUpdate, WhatsAppTransactionDraftOut
 from app.application.whatsapp.use_cases import WhatsAppAccountUseCases, WhatsAppDraftUseCases, WhatsAppWebhookUseCases
 from app.core.database import get_db
+from app.core.exceptions import BusinessRuleError
 from app.infrastructure.ai.audio_transcriber import AudioTranscriber
 from app.infrastructure.ai.transaction_interpreter import TransactionInterpreter
 from app.infrastructure.whatsapp.providers.twilio_provider import TwilioWhatsAppProvider
@@ -23,6 +24,7 @@ def webhook_use_cases(db: Session):
         repos["whatsapp_drafts"],
         repos["transactions"],
         repos["categories"],
+        repos["billing"],
         TwilioWhatsAppProvider(),
         TransactionInterpreter(),
         AudioTranscriber(),
@@ -62,21 +64,49 @@ async def twilio_status(request: Request):
 def list_accounts(user_id: str = Query(...), db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
     assert_user_access(user_id, authenticated_user_id)
     repos = repositories(db)
-    return WhatsAppAccountUseCases(repos["whatsapp_accounts"], repos["users"]).list(user_id)
+    try:
+        return WhatsAppAccountUseCases(repos["whatsapp_accounts"], repos["users"], repos["billing"]).list(user_id)
+    except BusinessRuleError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.post("/accounts", response_model=WhatsAppAccountOut)
 def create_account(payload: WhatsAppAccountCreate, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
     assert_user_access(payload.user_id, authenticated_user_id)
     repos = repositories(db)
-    return WhatsAppAccountUseCases(repos["whatsapp_accounts"], repos["users"]).create(payload)
+    try:
+        return WhatsAppAccountUseCases(repos["whatsapp_accounts"], repos["users"], repos["billing"]).create(payload)
+    except BusinessRuleError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.patch("/accounts/{account_id}", response_model=WhatsAppAccountOut)
+def update_account(account_id: str, payload: WhatsAppAccountUpdate, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
+    repos = repositories(db)
+    assert_user_access(repos["whatsapp_accounts"].get(account_id).user_id, authenticated_user_id)
+    try:
+        return WhatsAppAccountUseCases(repos["whatsapp_accounts"], repos["users"], repos["billing"]).update(account_id, payload)
+    except BusinessRuleError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.patch("/accounts/{account_id}/deactivate")
+def deactivate_account(account_id: str, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
+    repos = repositories(db)
+    assert_user_access(repos["whatsapp_accounts"].get(account_id).user_id, authenticated_user_id)
+    try:
+        return WhatsAppAccountUseCases(repos["whatsapp_accounts"], repos["users"], repos["billing"]).deactivate(account_id)
+    except BusinessRuleError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.delete("/accounts/{account_id}")
 def delete_account(account_id: str, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
-    repos = repositories(db)
-    assert_user_access(repos["whatsapp_accounts"].get(account_id).user_id, authenticated_user_id)
-    return WhatsAppAccountUseCases(repos["whatsapp_accounts"], repos["users"]).deactivate(account_id)
+    return deactivate_account(account_id, db, authenticated_user_id)
 
 
 @router.get("/drafts", response_model=list[WhatsAppTransactionDraftOut])

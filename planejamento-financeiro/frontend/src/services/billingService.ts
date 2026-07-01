@@ -1,5 +1,5 @@
 import { api } from "./api";
-import type { BillingAddress, BillingConfig, BillingPayment, BillingPlan, BillingSubscription } from "@/types/billing";
+import type { BillingAddress, BillingConfig, BillingOverview, BillingPayment, BillingPlan } from "@/types/billing";
 
 export async function getBillingPlans() {
   const { data } = await api.get<BillingPlan[]>("/billing/plans");
@@ -12,12 +12,12 @@ export async function getBillingConfig() {
 }
 
 export async function getUserBilling(userId: string) {
-  const { data } = await api.get<{ subscription: BillingSubscription | null; payments: BillingPayment[] }>("/billing/me", { params: { user_id: userId } });
+  const { data } = await api.get<BillingOverview>("/billing/me", { params: { user_id: userId } });
   return data;
 }
 
-export async function createPixCheckout(userId: string, planCode: string) {
-  const { data } = await api.post<BillingPayment>("/billing/checkout/pix", { user_id: userId, plan_code: planCode });
+export async function createPixCheckout(userId: string, planCode: string, renewal = false) {
+  const { data } = await api.post<BillingPayment>("/billing/checkout/pix", { user_id: userId, plan_code: planCode, renewal });
   return data;
 }
 
@@ -38,6 +38,7 @@ export async function createCardCheckout(payload: {
   address?: BillingAddress | null;
   billing_address?: BillingAddress | null;
   mock?: boolean;
+  renewal?: boolean;
 }) {
   const { data } = await api.post<BillingPayment>("/billing/checkout/card", payload);
   return data;

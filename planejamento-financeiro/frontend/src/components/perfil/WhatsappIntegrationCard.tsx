@@ -24,7 +24,7 @@ export function WhatsappIntegrationCard({ userId, onDone }: { userId: string; on
       setError("Informe o telefone em formato internacional. Ex.: +55 11 99999-9999.");
       return;
     }
-    await create(normalizedPhone);
+    await create(normalizedPhone, "Principal");
     setError("");
     setPhone("+55 ");
     onDone("WhatsApp vinculado");

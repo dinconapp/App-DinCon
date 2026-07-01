@@ -12,6 +12,7 @@ class SqlAlchemyBillingRepository:
 
     def ensure_default_plans(self):
         rows = []
+        desired_codes = {item["code"] for item in PLAN_DEFINITIONS}
         for item in PLAN_DEFINITIONS:
             plan = self.db.scalar(select(PlanModel).where(PlanModel.code == item["code"]))
             if not plan:
@@ -33,7 +34,11 @@ class SqlAlchemyBillingRepository:
                 plan.features = item["features"]
                 plan.is_active = True
             rows.append(plan)
+        legacy_plans = list(self.db.scalars(select(PlanModel).where(~PlanModel.code.in_(desired_codes)))) if desired_codes else []
+        for plan in legacy_plans:
+            plan.is_active = False
         self.db.flush()
+        self.db.commit()
         return rows
 
     def list_plans(self):
@@ -82,8 +87,25 @@ class SqlAlchemyBillingRepository:
         stmt = select(SubscriptionModel).where(SubscriptionModel.user_id == user_id).order_by(SubscriptionModel.created_at.desc())
         return self.db.scalar(stmt)
 
+    def active_subscription_by_user(self, user_id: str):
+        stmt = (
+            select(SubscriptionModel)
+            .where(SubscriptionModel.user_id == user_id, SubscriptionModel.status == "active")
+            .order_by(SubscriptionModel.current_period_end.desc().nullslast(), SubscriptionModel.created_at.desc())
+        )
+        return self.db.scalar(stmt)
+
     def list_payments_by_user(self, user_id: str, limit: int = 10):
         stmt = select(PaymentModel).where(PaymentModel.user_id == user_id).order_by(PaymentModel.created_at.desc()).limit(limit)
+        return list(self.db.scalars(stmt))
+
+    def list_approved_payments_by_user(self, user_id: str, limit: int = 10):
+        stmt = (
+            select(PaymentModel)
+            .where(PaymentModel.user_id == user_id, PaymentModel.status.in_(["paid", "approved"]))
+            .order_by(PaymentModel.paid_at.desc().nullslast(), PaymentModel.created_at.desc())
+            .limit(limit)
+        )
         return list(self.db.scalars(stmt))
 
     def get_event(self, provider: str, provider_event_id: str):

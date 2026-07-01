@@ -1,22 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { formatMonthParam, resolveMonthKey, shiftMonthKey } from "@/utils/month";
 
-function toMonthKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
+export function useMonth(initial?: string) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlMonth = searchParams.get("month");
+  const resolvedInitial = useMemo(() => resolveMonthKey(initial ?? urlMonth), [initial, urlMonth]);
+  const [monthKey, setMonthKey] = useState(resolvedInitial);
 
-export function shiftMonth(monthKey: string, delta: number) {
-  const [year, month] = monthKey.split("-").map(Number);
-  return toMonthKey(new Date(year, month - 1 + delta, 1));
-}
+  useEffect(() => {
+    const nextMonth = resolveMonthKey(urlMonth);
+    setMonthKey((current) => (current === nextMonth ? current : nextMonth));
+  }, [urlMonth]);
 
-export function useMonth(initial = toMonthKey(new Date())) {
-  const [monthKey, setMonthKey] = useState(initial);
+  function updateMonth(nextMonthKey: string) {
+    setMonthKey(nextMonthKey);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("month", nextMonthKey);
+    router.replace(`${pathname}?${params.toString()}`);
+  }
+
   return {
     monthKey,
-    setMonthKey,
-    previousMonth: () => setMonthKey((value) => shiftMonth(value, -1)),
-    nextMonth: () => setMonthKey((value) => shiftMonth(value, 1))
+    setMonthKey: updateMonth,
+    previousMonth: () => updateMonth(shiftMonthKey(monthKey, -1)),
+    nextMonth: () => updateMonth(shiftMonthKey(monthKey, 1)),
+    monthParam: formatMonthParam(new Date(monthKey + "-01"))
   };
 }

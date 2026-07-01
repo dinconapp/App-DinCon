@@ -117,12 +117,17 @@ class TransactionModel(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     transaction_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(app_enum("paid", "pending", "canceled"), default="paid")
+    source: Mapped[str | None] = mapped_column(String(40))
+    whatsapp_account_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("whatsapp_accounts.id"))
+    whatsapp_alias: Mapped[str | None] = mapped_column(String(120))
+    provider_message_id: Mapped[str | None] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("UserModel", back_populates="transactions")
     budget = relationship("BudgetModel", back_populates="transactions")
     category = relationship("CategoryModel")
+    whatsapp_account = relationship("WhatsAppAccountModel")
 
     __table_args__ = (
         Index("ix_transactions_user_date", "user_id", "transaction_date"),
@@ -137,6 +142,8 @@ class WhatsAppAccountModel(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     phone_number: Mapped[str] = mapped_column(String(30), nullable=False)
+    phone_number_e164: Mapped[str | None] = mapped_column(String(30))
+    alias: Mapped[str | None] = mapped_column(String(120))
     provider: Mapped[str] = mapped_column(String(30), nullable=False, default="twilio")
     provider_identity: Mapped[str | None] = mapped_column(String(120))
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

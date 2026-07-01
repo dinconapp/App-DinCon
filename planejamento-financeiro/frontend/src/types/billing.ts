@@ -7,6 +7,7 @@ export type BillingPlan = {
   currency: string;
   billing_interval: string;
   features: string[];
+  whatsapp_enabled?: boolean;
 };
 
 export type BillingPayment = {
@@ -48,13 +49,37 @@ export type BillingAddress = {
 
 export type BillingSubscription = {
   id: string;
-  user_id: string;
   plan_id: string;
+  plan_code?: string | null;
+  plan_name?: string | null;
   status: string;
-  provider: string;
   current_period_start: string | null;
   current_period_end: string | null;
-  cancel_at_period_end: boolean;
+  valid_until?: string | null;
+};
+
+export type BillingApprovedPayment = {
+  id?: string | null;
+  plan_name: string;
+  amount_cents: number;
+  payment_method: string;
+  payment_method_label: string;
+  approved_at: string | null;
+  valid_until: string | null;
+  status: "approved";
+};
+
+export type BillingOverview = {
+  current_plan: BillingPlan;
+  plan_name: string;
+  has_active_subscription: boolean;
+  whatsapp_enabled: boolean;
+  valid_until: string | null;
+  can_purchase: boolean;
+  can_renew_early: boolean;
+  subscription: BillingSubscription | null;
+  payments: BillingApprovedPayment[];
+  approved_payments: BillingApprovedPayment[];
 };
 
 export type BillingConfig = {

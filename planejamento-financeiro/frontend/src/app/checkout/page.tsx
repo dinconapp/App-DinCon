@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CreditCard, Loader2, MapPin, QrCode, RefreshCw } from "lucide-react";
+import { Copy, CreditCard, Loader2, MapPin, QrCode, RefreshCw } from "lucide-react";
 import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { Button } from "@/components/ui/Button";
@@ -107,6 +107,7 @@ function isTerminalStatus(status: string) {
 function CheckoutContent() {
   const params = useSearchParams();
   const selectedPlanCode = params.get("plan") || "pro";
+  const renewalRequested = params.get("renewal") === "true";
   const session = getSession();
   const [plans, setPlans] = useState<BillingPlan[]>([]);
   const [config, setConfig] = useState<BillingConfig | null>(null);
@@ -307,7 +308,7 @@ function CheckoutContent() {
         setPollTimedOut(false);
         setPixNow(Date.now());
       }
-      const next = nextMethod === "pix" ? await createPixCheckout(session.id, plan.code) : await payWithCard(session.id, plan.code);
+      const next = nextMethod === "pix" ? await createPixCheckout(session.id, plan.code, renewalRequested) : await payWithCard(session.id, plan.code);
       setPayment((current) => mergePixPayment(next, current));
       currentPaymentIdRef.current = next.id;
       setPollTimedOut(false);
@@ -358,6 +359,7 @@ function CheckoutContent() {
         payer_identification_number: documentNumber,
         address: sanitizedAddress,
         billing_address: sanitizedAddress,
+        renewal: renewalRequested,
       });
     }
     if (!config?.public_key || !window.MercadoPago) {
@@ -388,6 +390,7 @@ function CheckoutContent() {
       payer_identification_number: documentNumber,
       address: sanitizedAddress,
       billing_address: sanitizedAddress,
+      renewal: renewalRequested,
     });
   }
 
@@ -536,8 +539,29 @@ function PaymentResult({
 }) {
   const isPix = payment.payment_method === "pix";
   const showPixPanel = isPix && !pixExpired && !["paid", "approved", "rejected", "cancelled", "canceled", "refunded", "charged_back", "failed", "expired"].includes(payment.status);
-  const statusLabel = pixExpired ? "Expirado" : formatPaymentStatus(payment.status, payment.status_detail);
-  const statusClass = pixExpired ? "cf-billing-status expired" : statusToneClass(payment.status, payment.status_detail);
+  const [copyMessage, setCopyMessage] = useState("");
+  const statusLabel = isPix
+    ? pixExpired
+      ? "Pix expirado"
+      : payment.status === "approved" || payment.status === "paid"
+        ? "Pagamento aprovado"
+        : payment.status === "rejected"
+          ? "Pagamento recusado"
+          : payment.status === "failed"
+            ? "Não foi possível gerar o Pix"
+            : "Aguardando pagamento"
+    : formatPaymentStatus(payment.status, payment.status_detail);
+  const statusClass = isPix
+    ? pixExpired
+      ? "cf-billing-status expired"
+      : payment.status === "approved" || payment.status === "paid"
+        ? "cf-billing-status paid"
+        : payment.status === "rejected"
+          ? "cf-billing-status failed"
+          : "cf-billing-status pending"
+    : pixExpired
+      ? "cf-billing-status expired"
+      : statusToneClass(payment.status, payment.status_detail);
   const qrCode = pixArtifact?.qr_code ?? payment.qr_code;
   const qrCodeBase64 = pixArtifact?.qr_code_base64 ?? payment.qr_code_base64;
   const expirationValue = pixArtifact?.date_of_expiration ?? pixArtifact?.expires_at ?? payment.date_of_expiration ?? payment.expires_at;
@@ -547,7 +571,7 @@ function PaymentResult({
     : payment.status === "pending"
       ? "Seu pagamento está aguardando confirmação do Mercado Pago. Assim que houver retorno, atualizaremos automaticamente."
       : "";
-  const statusDetailMessage = formatPaymentStatusDetail(payment.status_detail);
+  const statusDetailMessage = isPix ? "" : formatPaymentStatusDetail(payment.status_detail);
   const timeoutMessage = payment.payment_method === "card" && pollTimedOut && isAwaitingReview
     ? "O Mercado Pago ainda está analisando seu pagamento. Você pode sair desta tela; avisaremos/liberaremos o plano automaticamente quando houver confirmação."
     : "";
@@ -555,6 +579,8 @@ function PaymentResult({
   async function copyPix() {
     if (!qrCode || pixExpired) return;
     await navigator.clipboard.writeText(qrCode);
+    setCopyMessage("Código Pix copiado");
+    window.setTimeout(() => setCopyMessage(""), 1800);
   }
 
   return (
@@ -567,13 +593,14 @@ function PaymentResult({
       {expirationValue && isPix && !pixExpired && <p className="cf-muted">Este QR Code expira em {formatCountdown(remainingPixSeconds)}</p>}
       {isPix && pixExpired && (
         <div className="cf-pix-expired-box">
-          <div className="cf-auth-error cf-pix-expired">{remainingPixSeconds === 0 ? "Este Pix já expirou. Gere um novo QR Code." : "Este QR Code expirou. Gere um novo Pix para continuar."}</div>
+          <div className="cf-auth-error cf-pix-expired">Este QR Code expirou. Gere um novo Pix para continuar.</div>
           <Button type="button" variant="primary" onClick={onGenerateNewPix} disabled={loading}><RefreshCw size={16} /> Gerar novo Pix</Button>
         </div>
       )}
       {(payment.status === "paid" || payment.status === "approved") && <div className="cf-auth-success">Pagamento aprovado.</div>}
       {analysisMessage && <div className="cf-help-text">{analysisMessage}</div>}
       {statusDetailMessage && <div className="cf-help-text">{statusDetailMessage}</div>}
+      {isPix && !pixExpired && <div className="cf-help-text">Escaneie o QR Code ou copie o código Pix para concluir o pagamento.</div>}
       {timeoutMessage && (
         <div className="cf-pix-expired-box">
           <div className="cf-help-text">{timeoutMessage}</div>
@@ -592,7 +619,7 @@ function PaymentResult({
       )}
       {showPixPanel && (
         <div className="cf-pix-result">
-          <div className="cf-pix-intro">Escaneie o QR Code ou copie o código Pix para pagar.</div>
+          <div className="cf-pix-intro">Escaneie o QR Code ou copie o código Pix para concluir o pagamento.</div>
           <div className={`cf-pix-qr-shell ${pixExpired ? "expired" : ""}`}>
             {qrCodeBase64 && !pixExpired ? (
               <img className="cf-pix-qr" src={`data:image/png;base64,${qrCodeBase64}`} alt="QR Code Pix" />
@@ -602,10 +629,11 @@ function PaymentResult({
           </div>
           {qrCode && (
             <div className="cf-pix-code-block">
-              <textarea className="cf-input cf-pix-code" readOnly value={qrCode} />
-              <div className="cf-pix-actions">
-                <Button type="button" onClick={copyPix} disabled={pixExpired}>Copiar código Pix</Button>
+              <div className="cf-input-append cf-pix-code-row">
+                <input className="cf-input cf-pix-code" readOnly value={qrCode} />
+                <Button type="button" square icon={<Copy size={16} />} onClick={copyPix} disabled={pixExpired} aria-label="Copiar código Pix" />
               </div>
+              {copyMessage && <div className="cf-help-text">{copyMessage}</div>}
             </div>
           )}
         </div>

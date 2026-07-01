@@ -45,6 +45,8 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
     setBillsLoading(true);
     try {
       setBills(await getBills(userId, monthKey));
+    } catch {
+      setBills({ pending: [], paid: [] });
     } finally {
       setBillsLoading(false);
     }

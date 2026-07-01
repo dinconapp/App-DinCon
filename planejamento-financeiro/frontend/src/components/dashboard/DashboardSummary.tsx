@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { PiggyBank, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -17,19 +17,6 @@ export function DashboardPage({ userId, monthKey }: { userId: string; monthKey: 
   if (loading) return <div className="cf-card">Carregando dashboard...</div>;
   if (error || !data) return <div className="cf-card">{error ?? "Dashboard indisponível."}</div>;
 
-  const variableExpenseItems = [
-    ...data.variable_expenses.filter((item) => item.budget_type !== "transaction"),
-    ...data.expenses_by_category.map((item) => ({
-        id: `category-${item.category_id ?? "none"}`,
-        description: item.category,
-        amount: item.amount,
-        realized: item.amount,
-        category: "Lançamentos do mês",
-        color: item.color,
-        budget_type: "transaction"
-      }))
-  ];
-
   return (
     <div className="cf-grid">
       <SectionHeader title="Resumo financeiro" description="Realizado é o que já foi lançado no mês. Previsto é o que está cadastrado no fluxo. Projetado é uma estimativa." />
@@ -42,7 +29,7 @@ export function DashboardPage({ userId, monthKey }: { userId: string; monthKey: 
       <div className="cf-grid cf-three">
         <IncomePanel items={data.incomes} />
         <FixedExpensesPanel items={data.fixed_expenses} />
-        <VariableExpensesPanel items={variableExpenseItems} />
+        <VariableExpensesPanel items={data.variable_expenses} />
       </div>
       <div className="cf-grid cf-two">
         <BillsPanel pending={data.pending_bills} paid={data.paid_bills} />

@@ -12,6 +12,8 @@ export function useBudgets(userId: string) {
     setLoading(true);
     try {
       setItems(await getBudgets(userId));
+    } catch {
+      setItems([]);
     } finally {
       setLoading(false);
     }

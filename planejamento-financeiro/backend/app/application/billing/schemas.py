@@ -15,6 +15,7 @@ class BillingAddressRequest(BaseModel):
 class CheckoutPixRequest(BaseModel):
     user_id: str
     plan_code: str = Field(min_length=1, max_length=60)
+    renewal: bool = False
 
 
 class CheckoutCardRequest(BaseModel):
@@ -34,6 +35,7 @@ class CheckoutCardRequest(BaseModel):
     address: BillingAddressRequest | None = None
     billing_address: BillingAddressRequest | None = None
     mock: bool = False
+    renewal: bool = False
 
 
 class PlanOut(BaseModel):
@@ -72,6 +74,53 @@ class PaymentOut(BaseModel):
     expires_at: str | None
     created_at: str | None
     updated_at: str | None
+
+
+class ApprovedPaymentOut(BaseModel):
+    id: str | None = None
+    plan_name: str
+    amount_cents: int
+    payment_method: str
+    payment_method_label: str
+    approved_at: str | None = None
+    valid_until: str | None = None
+    status: str = "approved"
+
+
+class BillingPlanSummaryOut(BaseModel):
+    id: str
+    code: str
+    name: str
+    description: str | None
+    price_cents: int
+    currency: str
+    billing_interval: str
+    features: list[Any]
+    whatsapp_enabled: bool = False
+
+
+class BillingSubscriptionSummaryOut(BaseModel):
+    id: str | None = None
+    plan_id: str | None = None
+    plan_code: str | None = None
+    plan_name: str | None = None
+    status: str | None = None
+    valid_until: str | None = None
+    current_period_start: str | None = None
+    current_period_end: str | None = None
+
+
+class BillingOverviewOut(BaseModel):
+    current_plan: BillingPlanSummaryOut
+    plan_name: str
+    has_active_subscription: bool
+    whatsapp_enabled: bool
+    valid_until: str | None = None
+    can_purchase: bool
+    can_renew_early: bool
+    subscription: BillingSubscriptionSummaryOut | None = None
+    payments: list[ApprovedPaymentOut] = Field(default_factory=list)
+    approved_payments: list[ApprovedPaymentOut] = Field(default_factory=list)
 
 
 class SubscriptionOut(BaseModel):

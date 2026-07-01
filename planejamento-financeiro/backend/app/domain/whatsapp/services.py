@@ -17,6 +17,16 @@ def normalize_phone(phone_number: str) -> str:
     return f"whatsapp:+{digits}"
 
 
+def normalize_phone_e164(phone_number: str) -> str:
+    raw = phone_number.strip()
+    if raw.startswith("whatsapp:"):
+        raw = raw.removeprefix("whatsapp:")
+    digits = re.sub(r"\D", "", raw)
+    if len(digits) < 10 or len(digits) > 15:
+        raise ValueError("Telefone invalido. Use formato internacional, exemplo: +5511999999999.")
+    return f"+{digits}"
+
+
 def normalize_user_reply(text: str | None) -> str:
     if not text:
         return ""

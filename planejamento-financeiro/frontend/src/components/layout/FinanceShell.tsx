@@ -14,7 +14,7 @@ import { PlanningPage } from "@/components/planejamento/PlanningSummaryCards";
 import { TransactionsPage } from "@/components/transacoes/TransactionList";
 import { BillsPage } from "@/components/contas/BillsList";
 import { SavingsDashboard } from "@/components/cofrinho/SavingsDashboard";
-import { ProfilePage } from "@/components/perfil/ProfileForm";
+import { ProfilePageClean } from "@/components/perfil/ProfilePageClean";
 
 export function FinanceShell({ active }: { active: "dashboard" | "planejamento" | "transacoes" | "contas" | "cofrinho" | "perfil" }) {
   const [userInitial, setUserInitial] = useState("U");
@@ -41,7 +41,7 @@ export function FinanceShell({ active }: { active: "dashboard" | "planejamento" 
                 {active === "transacoes" && <TransactionsPage userId={userId} monthKey={monthKey} actionToken={actionToken} onDone={showToast} />}
                 {active === "contas" && <BillsPage userId={userId} monthKey={monthKey} onDone={showToast} />}
                 {active === "cofrinho" && <SavingsDashboard userId={userId} actionToken={actionToken} onDone={showToast} />}
-                {active === "perfil" && <ProfilePage userId={userId} onInitial={setUserInitial} onDone={showToast} />}
+                {active === "perfil" && <ProfilePageClean userId={userId} onInitial={setUserInitial} onDone={showToast} />}
               </>
             ) : (
               <div className="cf-card">Carregando usuario...</div>

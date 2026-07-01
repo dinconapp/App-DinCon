@@ -18,6 +18,9 @@ export function BillsPage({ userId, monthKey, onDone }: { userId: string; monthK
       const data = await getBills(userId, monthKey);
       setPending(data.pending);
       setPaid(data.paid);
+    } catch {
+      setPending([]);
+      setPaid([]);
     } finally {
       setLoading(false);
     }

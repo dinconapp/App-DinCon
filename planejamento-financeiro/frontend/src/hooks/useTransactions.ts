@@ -16,6 +16,9 @@ export function useTransactions(userId: string, monthKey: string) {
       const data = await getTransactions(userId, monthKey, nextFilters);
       setItems(data.items);
       setTotals({ total_income: data.total_income, total_expense: data.total_expense });
+    } catch {
+      setItems([]);
+      setTotals({ total_income: 0, total_expense: 0 });
     } finally {
       setLoading(false);
     }

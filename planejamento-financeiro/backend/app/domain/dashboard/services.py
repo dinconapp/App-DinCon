@@ -100,9 +100,7 @@ def _budget_progress(budgets, transactions, month_key, kind, budget_type):
             continue
         if budget_type and budget.budget_type != budget_type:
             continue
-        realized = sum((tx.amount for tx in transactions if tx.status == "paid" and tx.budget_id == budget.id), Decimal("0"))
-        if realized == 0 and budget.budget_type == "variable":
-            realized = sum((tx.amount for tx in transactions if tx.status == "paid" and tx.category_id == budget.category_id and tx.kind == kind), Decimal("0"))
+        realized = sum((tx.amount for tx in transactions if _is_paid(tx) and tx.budget_id == budget.id), Decimal("0"))
         rows.append(_budget_line(budget) | {"realized": float(realized), "budget_type": budget.budget_type})
     return rows
 
@@ -111,7 +109,7 @@ def _variable_expenses(budgets, transactions, month_key):
     rows = _budget_progress(budgets, transactions, month_key, "expense", "variable")
 
     for tx in transactions:
-        if tx.kind != "expense" or tx.status != "paid":
+        if not _is_variable_unplanned_expense(tx):
             continue
         rows.append({
             "id": f"tx-{tx.id}",
@@ -126,6 +124,24 @@ def _variable_expenses(budgets, transactions, month_key):
             "budget_type": "transaction",
         })
     return rows
+
+
+def _is_paid(tx) -> bool:
+    return tx.status == "paid"
+
+
+def _budget_type(tx):
+    return tx.budget.budget_type if tx.budget else None
+
+
+def _is_expense(tx) -> bool:
+    return tx.kind == "expense"
+
+
+def _is_variable_unplanned_expense(tx) -> bool:
+    if not _is_expense(tx) or not _is_paid(tx):
+        return False
+    return tx.budget_id is None or tx.budget is None
 
 
 def _ranking(user, budgets, transactions_by_month, month_key):

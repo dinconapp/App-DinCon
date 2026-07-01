@@ -10,8 +10,10 @@ import { Card } from "@/components/ui/Card";
 import { getBillingPlans } from "@/services/billingService";
 import type { BillingPlan } from "@/types/billing";
 import { formatPrice } from "@/components/billing/billingFormat";
+import { PlansPageClean } from "@/components/billing/PlansPageClean";
 
 export default function PlansPage() {
+  return <PlansPageClean />;
   const [plans, setPlans] = useState<BillingPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

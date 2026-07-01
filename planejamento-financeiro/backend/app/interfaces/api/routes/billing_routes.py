@@ -4,7 +4,7 @@ import hmac
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
-from app.application.billing.schemas import CheckoutCardRequest, CheckoutPixRequest, PaymentOut, PlanOut
+from app.application.billing.schemas import BillingOverviewOut, CheckoutCardRequest, CheckoutPixRequest, PaymentOut, PlanOut
 from app.application.billing.use_cases import BillingUseCases
 from app.core.config import get_settings
 from app.core.database import get_db
@@ -53,7 +53,7 @@ def billing_config(db: Session = Depends(get_db)):
     return use_cases(db).config()
 
 
-@router.get("/me")
+@router.get("/me", response_model=BillingOverviewOut)
 def billing_me(user_id: str = Query(...), db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
     assert_user_access(user_id, authenticated_user_id)
     try:
@@ -66,11 +66,12 @@ def billing_me(user_id: str = Query(...), db: Session = Depends(get_db), authent
 def checkout_pix(payload: CheckoutPixRequest, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
     assert_user_access(payload.user_id, authenticated_user_id)
     try:
-        return use_cases(db).create_pix_checkout(payload.user_id, payload.plan_code)
+        return use_cases(db).create_pix_checkout(payload.user_id, payload.plan_code, payload.renewal)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except BillingError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+        detail = {"message": exc.message, "code": exc.code} if exc.code else exc.message
+        raise HTTPException(status_code=exc.status_code, detail=detail) from exc
 
 
 @router.post("/checkout/card", response_model=PaymentOut)
@@ -81,7 +82,8 @@ def checkout_card(payload: CheckoutCardRequest, db: Session = Depends(get_db), a
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except BillingError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+        detail = {"message": exc.message, "code": exc.code} if exc.code else exc.message
+        raise HTTPException(status_code=exc.status_code, detail=detail) from exc
 
 
 @router.patch("/payments/{payment_id}/expire", response_model=PaymentOut)
@@ -92,7 +94,8 @@ def expire_payment(payment_id: str, user_id: str = Query(...), db: Session = Dep
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except BillingError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+        detail = {"message": exc.message, "code": exc.code} if exc.code else exc.message
+        raise HTTPException(status_code=exc.status_code, detail=detail) from exc
 
 
 @router.get("/payments/{payment_id}", response_model=PaymentOut)
@@ -103,7 +106,8 @@ def get_payment(payment_id: str, user_id: str = Query(...), db: Session = Depend
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except BillingError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+        detail = {"message": exc.message, "code": exc.code} if exc.code else exc.message
+        raise HTTPException(status_code=exc.status_code, detail=detail) from exc
 
 
 @router.post("/webhooks/mercadopago")
