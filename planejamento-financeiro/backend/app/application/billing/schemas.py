@@ -20,6 +20,10 @@ class CheckoutPixRequest(BaseModel):
 class CheckoutCardRequest(BaseModel):
     user_id: str
     plan_code: str = Field(min_length=1, max_length=60)
+    email: str | None = Field(default=None, max_length=180)
+    first_name: str | None = Field(default=None, max_length=120)
+    last_name: str | None = Field(default=None, max_length=120)
+    cpf: str | None = Field(default=None, max_length=40)
     card_token: str | None = Field(default=None, max_length=300)
     token: str | None = Field(default=None, max_length=300)
     installments: int = Field(default=1, ge=1, le=12)
@@ -28,6 +32,7 @@ class CheckoutCardRequest(BaseModel):
     payer_identification_type: str | None = Field(default=None, max_length=20)
     payer_identification_number: str | None = Field(default=None, max_length=40)
     address: BillingAddressRequest | None = None
+    billing_address: BillingAddressRequest | None = None
     mock: bool = False
 
 
@@ -50,6 +55,7 @@ class PaymentOut(BaseModel):
     provider: str
     provider_payment_id: str | None
     provider_payload: dict[str, Any] | None = None
+    status_detail: str | None = None
     payment_method: str
     status: str
     amount_cents: int
@@ -65,6 +71,7 @@ class PaymentOut(BaseModel):
     paid_at: str | None
     expires_at: str | None
     created_at: str | None
+    updated_at: str | None
 
 
 class SubscriptionOut(BaseModel):

@@ -24,6 +24,10 @@ export async function createPixCheckout(userId: string, planCode: string) {
 export async function createCardCheckout(payload: {
   user_id: string;
   plan_code: string;
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  cpf?: string | null;
   card_token?: string | null;
   token?: string | null;
   installments?: number;
@@ -32,6 +36,7 @@ export async function createCardCheckout(payload: {
   payer_identification_type?: string | null;
   payer_identification_number?: string | null;
   address?: BillingAddress | null;
+  billing_address?: BillingAddress | null;
   mock?: boolean;
 }) {
   const { data } = await api.post<BillingPayment>("/billing/checkout/card", payload);

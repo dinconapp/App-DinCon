@@ -305,6 +305,7 @@
 .cf-billing-status { border-radius: 999px; padding: 5px 9px; font-size: 12px; font-weight: 800; }
 .cf-billing-status.paid { color: #83F0C0; background: rgba(67,230,163,.11); border: 1px solid rgba(67,230,163,.25); }
 .cf-billing-status.pending { color: #F4C25A; background: rgba(244,194,90,.1); border: 1px solid rgba(244,194,90,.24); }
+.cf-billing-status.alert { color: #F2D58B; background: rgba(242,213,139,.08); border: 1px solid rgba(242,213,139,.22); }
 .cf-billing-status.failed { color: #FF9AA4; background: rgba(255,107,122,.1); border: 1px solid rgba(255,107,122,.22); }
 .cf-billing-status.expired { color: #B9C1CF; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
 .cf-billing-status.canceled { color: #B9C1CF; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }

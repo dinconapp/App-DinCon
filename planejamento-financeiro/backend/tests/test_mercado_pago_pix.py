@@ -52,10 +52,11 @@ class FakeBillingRepo:
 
 
 class FakeMercadoPagoProvider:
-    def __init__(self, status: str = "pending"):
+    def __init__(self, status: str = "pending", status_detail: str | None = None):
         self.calls = 0
         self.payloads = []
         self.status = status
+        self.status_detail = status_detail
 
     def build_notification_url(self):
         return None
@@ -77,7 +78,11 @@ class FakeMercadoPagoProvider:
         }
 
     def get_payment(self, provider_payment_id: str):
-        return {"id": provider_payment_id, "status": self.status}
+        self.calls += 1
+        payload = {"id": provider_payment_id, "status": self.status}
+        if self.status_detail:
+            payload["status_detail"] = self.status_detail
+        return payload
 
 
 class MercadoPagoBillingTests(unittest.TestCase):
@@ -180,6 +185,10 @@ class MercadoPagoBillingTests(unittest.TestCase):
         payload = SimpleNamespace(
             user_id=self.user.id,
             plan_code=self.plan.code,
+            email="buyer@example.com",
+            first_name="Maria",
+            last_name="Silva",
+            cpf="123.456.789-00",
             card_token="card_token_123",
             token=None,
             installments=1,
@@ -196,6 +205,15 @@ class MercadoPagoBillingTests(unittest.TestCase):
                 federal_unit="sp",
                 complement="Apto 12",
             ),
+            billing_address=SimpleNamespace(
+                zip_code="00000-000",
+                street_name="Rua das Flores",
+                street_number="S/N",
+                neighborhood="Centro",
+                city="Sao Paulo",
+                federal_unit="sp",
+                complement="Apto 12",
+            ),
             mock=False,
         )
 
@@ -203,9 +221,16 @@ class MercadoPagoBillingTests(unittest.TestCase):
 
         self.assertEqual(provider.calls, 1)
         sent_payload = provider.payloads[0]
+        self.assertEqual(sent_payload["payer"]["email"], "buyer@example.com")
+        self.assertEqual(sent_payload["payer"]["first_name"], "Maria")
+        self.assertEqual(sent_payload["payer"]["last_name"], "Silva")
+        self.assertEqual(sent_payload["payer"]["identification"]["type"], "CPF")
+        self.assertEqual(sent_payload["payer"]["identification"]["number"], "12345678900")
         self.assertEqual(sent_payload["payer"]["address"]["zip_code"], "00000000")
         self.assertEqual(sent_payload["payer"]["address"]["federal_unit"], "SP")
-        self.assertEqual(sent_payload["payer"]["identification"]["number"], "12345678900")
+        self.assertIn("additional_info", sent_payload)
+        self.assertEqual(sent_payload["additional_info"]["items"][0]["id"], self.plan.id)
+        self.assertEqual(sent_payload["additional_info"]["payer"]["first_name"], "Maria")
         self.assertEqual(result["status"], "paid")
 
     def test_card_checkout_without_address_still_works(self):
@@ -232,6 +257,20 @@ class MercadoPagoBillingTests(unittest.TestCase):
         sent_payload = provider.payloads[0]
         self.assertNotIn("address", sent_payload["payer"])
         self.assertEqual(result["status"], "paid")
+
+    def test_get_payment_syncs_in_process_status_and_status_detail(self):
+        provider = FakeMercadoPagoProvider(status="in_process", status_detail="pending_review_manual")
+        payment = self.make_payment(method="card", status="processing")
+        payment.provider_payment_id = "mp_123"
+        use_cases, billing = self.make_use_cases(payment, provider)
+
+        result = use_cases.get_payment(self.user.id, payment.id)
+
+        self.assertEqual(provider.calls, 1)
+        self.assertEqual(result["status"], "processing")
+        self.assertEqual(result["status_detail"], "pending_review_manual")
+        self.assertEqual(billing.payment.status, "processing")
+        self.assertEqual(billing.payment.provider_payload["status_detail"], "pending_review_manual")
 
 
 if __name__ == "__main__":

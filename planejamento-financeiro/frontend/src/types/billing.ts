@@ -17,6 +17,7 @@ export type BillingPayment = {
   provider: string;
   provider_payment_id: string | null;
   provider_payload?: Record<string, unknown> | null;
+  status_detail?: string | null;
   payment_method: string;
   status: string;
   amount_cents: number;
@@ -32,6 +33,7 @@ export type BillingPayment = {
   paid_at: string | null;
   expires_at: string | null;
   created_at: string | null;
+  updated_at: string | null;
 };
 
 export type BillingAddress = {

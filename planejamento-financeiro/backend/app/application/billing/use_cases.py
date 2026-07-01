@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -40,6 +41,7 @@ def serialize_plan(plan):
 
 
 def serialize_payment(payment):
+    provider_payload = payment.provider_payload if isinstance(payment.provider_payload, dict) else {}
     return {
         "id": payment.id,
         "user_id": payment.user_id,
@@ -47,7 +49,8 @@ def serialize_payment(payment):
         "subscription_id": payment.subscription_id,
         "provider": payment.provider,
         "provider_payment_id": payment.provider_payment_id,
-        "provider_payload": payment.provider_payload,
+        "provider_payload": provider_payload,
+        "status_detail": provider_payload.get("status_detail") or provider_payload.get("status_reason") or provider_payload.get("detail"),
         "payment_method": payment.payment_method,
         "status": payment.status,
         "amount_cents": payment.amount_cents,
@@ -63,6 +66,7 @@ def serialize_payment(payment):
         "paid_at": dt(payment.paid_at),
         "expires_at": dt(payment.expires_at),
         "created_at": dt(payment.created_at),
+        "updated_at": dt(payment.updated_at),
     }
 
 
@@ -124,7 +128,7 @@ class BillingUseCases:
         else:
             payload = self._mercadopago_payload(user, plan, payment, "pix")
             provider_payload = self.provider.create_payment(payload)
-            payment = self._apply_provider_payload(payment, provider_payload)
+            payment = self._apply_provider_payload(payment, provider_payload, origin="checkout_response")
         return serialize_payment(payment)
 
     def create_card_checkout(self, payload):
@@ -150,14 +154,18 @@ class BillingUseCases:
                 plan,
                 payment,
                 payload.payment_method_id or "visa",
+                email=getattr(payload, "email", None),
+                first_name=getattr(payload, "first_name", None),
+                last_name=getattr(payload, "last_name", None),
+                cpf=getattr(payload, "cpf", None),
                 token=token,
                 installments=payload.installments,
                 issuer_id=payload.issuer_id,
                 payer_identification_type=payload.payer_identification_type,
                 payer_identification_number=payload.payer_identification_number,
-                address=payload.address,
+                billing_address=getattr(payload, "billing_address", None) or getattr(payload, "address", None),
             ))
-            payment = self._apply_provider_payload(payment, provider_payload)
+            payment = self._apply_provider_payload(payment, provider_payload, origin="checkout_response")
             if payment.status == "paid":
                 self._activate_subscription(user, plan, payment)
                 payment = self.billing.get_payment(payment.id)
@@ -171,7 +179,7 @@ class BillingUseCases:
             return serialize_payment(payment)
         if payment.status in {"paid", "failed", "expired", "canceled", "cancelled", "refunded", "charged_back"}:
             return serialize_payment(payment)
-        if payment.status not in {"pending", "processing"}:
+        if payment.status not in {"pending", "processing", "in_process"}:
             return serialize_payment(payment)
         provider_payload = dict(payment.provider_payload or {})
         provider_payload["status"] = "expired"
@@ -187,9 +195,9 @@ class BillingUseCases:
         payment = self.billing.get_payment(payment_id)
         if payment.user_id != user_id:
             raise NotFoundError("Pagamento nao encontrado.")
-        if not self._use_mock_mode() and payment.provider == "mercadopago" and payment.provider_payment_id and payment.status in {"pending", "processing"}:
+        if not self._use_mock_mode() and payment.provider == "mercadopago" and payment.provider_payment_id and payment.status in {"pending", "processing", "in_process"}:
             provider_payload = self.provider.get_payment(payment.provider_payment_id)
-            payment = self._apply_provider_payload(payment, provider_payload)
+            payment = self._apply_provider_payload(payment, provider_payload, origin="polling")
             if payment.status == "paid" and not payment.subscription_id:
                 user = self.users.get(payment.user_id)
                 plan = self.billing.get_plan_by_code(payment.plan.code) if getattr(payment, "plan", None) else None
@@ -210,10 +218,8 @@ class BillingUseCases:
 
         payment = self.billing.get_payment_by_provider_id(provider_payment_id) if provider_payment_id else None
         if payment and not self._use_mock_mode():
-            previous = payment.status
             provider_payload = self.provider.get_payment(provider_payment_id)
-            payment = self._apply_provider_payload(payment, provider_payload)
-            logger.info("mercadopago.webhook.payment_transition payment_id=%s provider_payment_id=%s %s->%s", payment.id, provider_payment_id, previous, payment.status)
+            payment = self._apply_provider_payload(payment, provider_payload, origin="webhook")
             if payment.status == "paid" and not payment.subscription_id:
                 user = self.users.get(payment.user_id)
                 if payment.plan:
@@ -248,6 +254,16 @@ class BillingUseCases:
         })
 
     def _mercadopago_payload(self, user, plan, payment, payment_method_id: str, **kwargs):
+        email = self._clean_text(kwargs.get("email")) or self._clean_text(getattr(user, "email", None)) or f"{user.id}@dincon.local"
+        first_name, last_name = self._resolve_name_parts(
+            kwargs.get("first_name"),
+            kwargs.get("last_name"),
+            getattr(user, "name", None),
+        )
+        cpf = self._digits_only(kwargs.get("cpf") or kwargs.get("payer_identification_number"))
+        identification_type = self._clean_text(kwargs.get("payer_identification_type")) or ("CPF" if cpf else None)
+        billing_address = self._sanitize_address(kwargs.get("billing_address") or kwargs.get("address"))
+        phone = self._sanitize_phone(getattr(user, "phone", None))
         payload = {
             "transaction_amount": round(plan.price_cents / 100, 2),
             "description": payment.description,
@@ -255,8 +271,9 @@ class BillingUseCases:
             "external_reference": payment.external_reference,
             "statement_descriptor": self.settings.payments_default_statement_descriptor[:22],
             "payer": {
-                "email": user.email or f"{user.id}@dincon.local",
-                "first_name": user.name,
+                "email": email,
+                "first_name": first_name,
+                "last_name": last_name,
             },
         }
         notification_url = self.provider.build_notification_url()
@@ -264,29 +281,30 @@ class BillingUseCases:
             payload["notification_url"] = notification_url
         if payment_method_id == "pix" and payment.expires_at:
             payload["date_of_expiration"] = format_utc_millis_z(payment.expires_at)
+        if cpf:
+            payload["payer"]["identification"] = {
+                "type": identification_type or "CPF",
+                "number": cpf,
+            }
         if kwargs.get("token"):
             payload["token"] = kwargs["token"]
             payload["installments"] = kwargs.get("installments") or 1
             if kwargs.get("issuer_id"):
                 payload["issuer_id"] = kwargs["issuer_id"]
-            if kwargs.get("payer_identification_type") and kwargs.get("payer_identification_number"):
-                payload["payer"]["identification"] = {
-                    "type": kwargs["payer_identification_type"],
-                    "number": self._digits_only(kwargs["payer_identification_number"]),
-                }
-            elif kwargs.get("payer_identification_number"):
-                payload["payer"]["identification"] = {
-                    "type": "CPF",
-                    "number": self._digits_only(kwargs["payer_identification_number"]),
-                }
-            address = self._sanitize_address(kwargs.get("address"))
-            if address:
-                payload["payer"]["address"] = address
+            if billing_address:
+                payload["payer"]["address"] = billing_address
+            additional_info = self._build_additional_info(plan, billing_address, first_name, last_name, phone)
+            if additional_info:
+                payload["additional_info"] = additional_info
+        elif billing_address:
+            payload["payer"]["address"] = billing_address
         return payload
 
-    def _apply_provider_payload(self, payment, payload: dict):
+    def _apply_provider_payload(self, payment, payload: dict, origin: str = "provider_sync"):
+        previous = payment.status
         status = map_provider_status(payload.get("status"))
         transaction = payload.get("point_of_interaction", {}).get("transaction_data", {})
+        approved_at = self._parse_provider_datetime(payload.get("date_approved"))
         data = {
             "provider_payment_id": str(payload.get("id")) if payload.get("id") else payment.provider_payment_id,
             "status": status,
@@ -294,10 +312,12 @@ class BillingUseCases:
             "qr_code_base64": transaction.get("qr_code_base64") or payment.qr_code_base64,
             "checkout_url": transaction.get("ticket_url") or payload.get("init_point") or payment.checkout_url,
             "provider_payload": safe_provider_payload(payload),
-            "paid_at": utcnow_naive() if status == "paid" and not payment.paid_at else payment.paid_at,
+            "paid_at": approved_at or (utcnow_naive() if status == "paid" and not payment.paid_at else payment.paid_at),
             "updated_at": utcnow_naive(),
         }
-        return self.billing.update_payment(payment.id, data)
+        updated = self.billing.update_payment(payment.id, data)
+        self._log_payment_transition(updated, previous, status, origin)
+        return updated
 
     def _activate_subscription(self, user, plan, payment):
         subscription = self.billing.create_subscription({
@@ -315,15 +335,30 @@ class BillingUseCases:
     def _use_mock_mode(self) -> bool:
         return bool(self.settings.payments_mock_mode and not self.settings.is_production)
 
+    def _clean_text(self, value):
+        if value is None:
+            return None
+        cleaned = str(value).strip()
+        return cleaned or None
+
+    def _resolve_name_parts(self, first_name, last_name, fallback_name):
+        explicit_first = self._clean_text(first_name)
+        explicit_last = self._clean_text(last_name)
+        if explicit_first and explicit_last:
+            return explicit_first, explicit_last
+        if explicit_first and not explicit_last:
+            return explicit_first, None
+        cleaned = self._clean_text(fallback_name) or ""
+        parts = [part for part in re.split(r"\s+", cleaned) if part]
+        if not parts:
+            return "Cliente", None
+        if len(parts) == 1:
+            return parts[0], None
+        return parts[0], " ".join(parts[1:])
+
     def _sanitize_address(self, address):
         if not address:
             return None
-
-        def clean_text(value):
-            if value is None:
-                return None
-            value = str(value).strip()
-            return value or None
 
         def digits(value):
             if value is None:
@@ -333,12 +368,12 @@ class BillingUseCases:
 
         cleaned = {
             "zip_code": digits(getattr(address, "zip_code", None)),
-            "street_name": clean_text(getattr(address, "street_name", None)),
-            "street_number": clean_text(getattr(address, "street_number", None)),
-            "neighborhood": clean_text(getattr(address, "neighborhood", None)),
-            "city": clean_text(getattr(address, "city", None)),
-            "federal_unit": clean_text(getattr(address, "federal_unit", None)),
-            "complement": clean_text(getattr(address, "complement", None)),
+            "street_name": self._clean_text(getattr(address, "street_name", None)),
+            "street_number": self._clean_text(getattr(address, "street_number", None)),
+            "neighborhood": self._clean_text(getattr(address, "neighborhood", None)),
+            "city": self._clean_text(getattr(address, "city", None)),
+            "federal_unit": self._clean_text(getattr(address, "federal_unit", None)),
+            "complement": self._clean_text(getattr(address, "complement", None)),
         }
         if cleaned["federal_unit"]:
             cleaned["federal_unit"] = cleaned["federal_unit"].upper()[:2]
@@ -346,8 +381,82 @@ class BillingUseCases:
             return None
         return {key: value for key, value in cleaned.items() if value}
 
+    def _sanitize_phone(self, phone):
+        digits = self._digits_only(phone)
+        if not digits:
+            return None
+        if len(digits) <= 2:
+            return None
+        area_code = digits[:2]
+        number = digits[2:]
+        return {
+            "area_code": area_code,
+            "number": number,
+        }
+
+    def _build_additional_info(self, plan, billing_address, first_name, last_name, phone):
+        payer = {}
+        if first_name:
+            payer["first_name"] = first_name
+        if last_name:
+            payer["last_name"] = last_name
+        if phone:
+            payer["phone"] = phone
+        if billing_address:
+            payer_address = {}
+            if billing_address.get("zip_code"):
+                payer_address["zip_code"] = billing_address["zip_code"]
+            if billing_address.get("street_name"):
+                payer_address["street_name"] = billing_address["street_name"]
+            if billing_address.get("street_number"):
+                payer_address["street_number"] = billing_address["street_number"]
+            if payer_address:
+                payer["address"] = payer_address
+
+        item = {
+            "id": plan.id,
+            "title": f"DinCon - Plano {plan.name}",
+            "description": f"Assinatura do Plano {plan.name} DinCon",
+            "quantity": 1,
+            "unit_price": round(plan.price_cents / 100, 2),
+        }
+        data = {"items": [item]}
+        if payer:
+            data["payer"] = payer
+        return data
+
+    def _parse_provider_datetime(self, value):
+        if not value:
+            return None
+        if isinstance(value, datetime):
+            return value.astimezone(timezone.utc).replace(tzinfo=None) if value.tzinfo else value
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip().replace("Z", "+00:00")
+        try:
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            return parsed
+        return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+
     def _digits_only(self, value):
         if value is None:
             return None
         cleaned = "".join(ch for ch in str(value) if ch.isdigit())
         return cleaned or None
+
+    def _log_payment_transition(self, payment, old_status: str, new_status: str, origin: str):
+        provider_payload = payment.provider_payload if isinstance(payment.provider_payload, dict) else {}
+        status_detail = provider_payload.get("status_detail") or provider_payload.get("status_reason") or provider_payload.get("detail")
+        logger.info(
+            "mercadopago.payment.transition origin=%s payment_id=%s provider_payment_id=%s external_reference=%s old_status=%s new_status=%s status_detail=%s",
+            origin,
+            payment.id,
+            payment.provider_payment_id,
+            payment.external_reference,
+            old_status,
+            new_status,
+            status_detail,
+        )

@@ -7,7 +7,7 @@ import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { formatPaymentMethod, formatPaymentStatus, formatPrice, statusToneClass } from "@/components/billing/billingFormat";
+import { formatPaymentMethod, formatPaymentStatus, formatPaymentStatusDetail, formatPrice, statusToneClass } from "@/components/billing/billingFormat";
 import { getSession } from "@/services/authService";
 import { createCardCheckout, createPixCheckout, expireBillingPayment, getBillingConfig, getBillingPayment, getBillingPlans } from "@/services/billingService";
 import { lookupCep } from "@/services/cepService";
@@ -75,6 +75,26 @@ function buildAddressPayload(address: CardAddressState): BillingAddress | undefi
   };
 }
 
+function splitFullName(value?: string | null) {
+  const name = String(value || "").trim().replace(/\s+/g, " ");
+  if (!name) return { first_name: "", last_name: "" };
+  const parts = name.split(" ");
+  if (parts.length === 1) return { first_name: parts[0], last_name: "" };
+  return { first_name: parts[0], last_name: parts.slice(1).join(" ") };
+}
+
+const CARD_ANALYSIS_TIMEOUT_MS = 5 * 60 * 1000;
+const POLLING_STATUSES = new Set(["pending", "processing", "in_process"]);
+const TERMINAL_STATUSES = new Set(["paid", "approved", "rejected", "cancelled", "canceled", "expired", "refunded", "charged_back", "failed"]);
+
+function isPollingStatus(status: string) {
+  return POLLING_STATUSES.has(String(status || "").toLowerCase());
+}
+
+function isTerminalStatus(status: string) {
+  return TERMINAL_STATUSES.has(String(status || "").toLowerCase());
+}
+
 function CheckoutContent() {
   const params = useSearchParams();
   const selectedPlanCode = params.get("plan") || "pro";
@@ -99,14 +119,19 @@ function CheckoutContent() {
   const [cepStatus, setCepStatus] = useState("");
   const [cepLoading, setCepLoading] = useState(false);
   const [pixNow, setPixNow] = useState(() => Date.now());
+  const [pollTimedOut, setPollTimedOut] = useState(false);
+  const [refreshingStatus, setRefreshingStatus] = useState(false);
+  const [pollToken, setPollToken] = useState(0);
   const cepLookupRef = useRef<number | null>(null);
   const lastCepLookupRef = useRef("");
   const expireSubmitRef = useRef<string | null>(null);
+  const pollSessionRef = useRef<{ paymentId: string; startedAt: number } | null>(null);
 
   const plan = useMemo(() => plans.find((item) => item.code === selectedPlanCode) ?? plans.find((item) => item.code === "pro"), [plans, selectedPlanCode]);
   const pixExpirationAt = useMemo(() => parseExpirationMs(payment?.date_of_expiration ?? payment?.expires_at), [payment?.date_of_expiration, payment?.expires_at]);
   const remainingPixSeconds = payment?.payment_method === "pix" ? getRemainingSeconds(pixExpirationAt ?? 0, pixNow) : 0;
-  const pixExpired = payment?.payment_method === "pix" && (payment.status === "expired" || (isActivePixStatus(payment.status) && remainingPixSeconds === 0));
+  const pixExpired = payment?.payment_method === "pix" && (payment?.status === "expired" || (payment ? isActivePixStatus(payment.status) && remainingPixSeconds === 0 : false));
+  const paymentWatchable = Boolean(payment && isPollingStatus(payment.status));
 
   useEffect(() => {
     Promise.all([getBillingPlans(), getBillingConfig()])
@@ -130,13 +155,45 @@ function CheckoutContent() {
   }, [config]);
 
   useEffect(() => {
-    if (!payment || !session?.id || payment.payment_method !== "pix") return;
-    if (!isActivePixStatus(payment.status) || pixExpired) return;
-    const timer = window.setInterval(() => {
-      getBillingPayment(session.id, payment.id).then(setPayment).catch(() => undefined);
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [payment?.id, payment?.payment_method, payment?.status, pixExpired, session?.id]);
+    if (!session?.id || !payment || !paymentWatchable) {
+      pollSessionRef.current = null;
+      setPollTimedOut(false);
+      return;
+    }
+
+    const samePayment = pollSessionRef.current?.paymentId === payment.id;
+    const startedAt = samePayment ? pollSessionRef.current!.startedAt : Date.now();
+    pollSessionRef.current = { paymentId: payment.id, startedAt };
+    setPollTimedOut(false);
+
+    const controller = new AbortController();
+    const remaining = Math.max(0, CARD_ANALYSIS_TIMEOUT_MS - (Date.now() - startedAt));
+
+    const refresh = async () => {
+      if (controller.signal.aborted) return;
+      try {
+        const next = await getBillingPayment(session.id, payment.id);
+        if (!controller.signal.aborted) setPayment(next);
+      } catch {
+        if (!controller.signal.aborted) return;
+      }
+    };
+
+    const timer = window.setInterval(refresh, 5000);
+    const timeout = window.setTimeout(() => {
+      if (controller.signal.aborted) return;
+      setPollTimedOut(true);
+      window.clearInterval(timer);
+    }, remaining);
+
+    refresh();
+
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      window.clearTimeout(timeout);
+    };
+  }, [payment?.id, payment?.status, paymentWatchable, pollToken, session?.id]);
 
   useEffect(() => {
     if (!payment || payment.payment_method !== "pix" || !isActivePixStatus(payment.status) || pixExpired) return;
@@ -209,6 +266,8 @@ function CheckoutContent() {
     try {
       const next = nextMethod === "pix" ? await createPixCheckout(session.id, plan.code) : await payWithCard(session.id, plan.code);
       setPayment(next);
+      setPollTimedOut(false);
+      setPollToken((value) => value + 1);
       if (nextMethod === "pix") {
         setPixNow(Date.now());
         expireSubmitRef.current = null;
@@ -231,16 +290,22 @@ function CheckoutContent() {
     if (!isAddressComplete(address)) {
       throw new Error("Complete o endereço de cobrança ou deixe-o em branco.");
     }
+    const buyerName = splitFullName(session?.name);
     if (config?.mock_mode) {
       return createCardCheckout({
         user_id: userId,
         plan_code: planCode,
         mock: true,
+        email: session?.email || undefined,
+        first_name: buyerName.first_name || undefined,
+        last_name: buyerName.last_name || undefined,
+        cpf: documentNumber || undefined,
         installments: card.installments,
         payment_method_id: card.paymentMethodId,
         payer_identification_type: "CPF",
         payer_identification_number: documentNumber,
         address: sanitizedAddress,
+        billing_address: sanitizedAddress,
       });
     }
     if (!config?.public_key || !window.MercadoPago) {
@@ -260,18 +325,39 @@ function CheckoutContent() {
     return createCardCheckout({
       user_id: userId,
       plan_code: planCode,
+      email: session?.email || undefined,
+      first_name: buyerName.first_name || undefined,
+      last_name: buyerName.last_name || undefined,
+      cpf: documentNumber || undefined,
       card_token: token.id,
       installments: card.installments,
       payment_method_id: card.paymentMethodId,
       payer_identification_type: "CPF",
       payer_identification_number: documentNumber,
       address: sanitizedAddress,
+      billing_address: sanitizedAddress,
     });
   }
 
   async function regeneratePix() {
     setMethod("pix");
     await startCheckout("pix");
+  }
+
+  async function refreshStatus() {
+    if (!session?.id || !payment) return;
+    setRefreshingStatus(true);
+    try {
+      const next = await getBillingPayment(session.id, payment.id);
+      setPayment(next);
+      setPollTimedOut(false);
+      setPollToken((value) => value + 1);
+      if (!isTerminalStatus(next.status)) {
+        pollSessionRef.current = { paymentId: next.id, startedAt: Date.now() };
+      }
+    } finally {
+      setRefreshingStatus(false);
+    }
   }
 
   return (
@@ -361,7 +447,10 @@ function CheckoutContent() {
               pixExpired={Boolean(pixExpired)}
               remainingPixSeconds={remainingPixSeconds}
               loading={loading}
+              pollTimedOut={pollTimedOut}
+              refreshingStatus={refreshingStatus}
               onGenerateNewPix={regeneratePix}
+              onRefreshStatus={refreshStatus}
             />
           )}
         </section>
@@ -375,19 +464,35 @@ function PaymentResult({
   pixExpired,
   remainingPixSeconds,
   loading,
+  pollTimedOut,
+  refreshingStatus,
   onGenerateNewPix,
+  onRefreshStatus,
 }: {
   payment: BillingPayment;
   pixExpired: boolean;
   remainingPixSeconds: number;
   loading: boolean;
+  pollTimedOut: boolean;
+  refreshingStatus: boolean;
   onGenerateNewPix: () => Promise<void>;
+  onRefreshStatus: () => Promise<void>;
 }) {
   const isPix = payment.payment_method === "pix";
   const showPixPanel = isPix && !["paid", "approved", "rejected", "cancelled", "canceled", "refunded", "charged_back", "failed"].includes(payment.status);
   const statusLabel = formatPaymentStatus(payment.status);
   const statusClass = statusToneClass(payment.status);
   const expirationValue = payment.date_of_expiration ?? payment.expires_at;
+  const isAwaitingReview = isPollingStatus(payment.status);
+  const analysisMessage = payment.payment_method === "card" && (payment.status === "processing" || payment.status === "in_process")
+    ? "Seu pagamento está em análise pelo Mercado Pago. Assim que for aprovado, seu plano será liberado automaticamente."
+    : payment.status === "pending"
+      ? "Seu pagamento está aguardando confirmação do Mercado Pago. Assim que houver retorno, atualizaremos automaticamente."
+      : "";
+  const statusDetailMessage = formatPaymentStatusDetail(payment.status_detail);
+  const timeoutMessage = payment.payment_method === "card" && pollTimedOut && isAwaitingReview
+    ? "O Mercado Pago ainda está analisando seu pagamento. Você pode sair desta tela; avisaremos/liberaremos o plano automaticamente quando houver confirmação."
+    : "";
 
   async function copyPix() {
     if (!payment.qr_code || pixExpired) return;
@@ -409,7 +514,24 @@ function PaymentResult({
         </div>
       )}
       {(payment.status === "paid" || payment.status === "approved") && <div className="cf-auth-success">Pagamento aprovado.</div>}
+      {analysisMessage && <div className="cf-help-text">{analysisMessage}</div>}
+      {statusDetailMessage && <div className="cf-help-text">{statusDetailMessage}</div>}
+      {timeoutMessage && (
+        <div className="cf-pix-expired-box">
+          <div className="cf-help-text">{timeoutMessage}</div>
+          <div className="cf-pix-actions">
+            <Button type="button" variant="primary" onClick={onRefreshStatus} disabled={refreshingStatus}>{refreshingStatus ? "Consultando..." : "Consultar status novamente"}</Button>
+            <Link href="/minha-assinatura" className="cf-btn">Voltar para meus planos</Link>
+          </div>
+        </div>
+      )}
       {payment.checkout_url && <a className="cf-btn cf-pix-open-checkout" href={payment.checkout_url} target="_blank" rel="noreferrer">Abrir checkout Mercado Pago</a>}
+      {payment.payment_method === "card" && isAwaitingReview && !pollTimedOut && (
+        <div className="cf-pix-actions">
+          <Button type="button" onClick={onRefreshStatus} disabled={refreshingStatus}>{refreshingStatus ? "Consultando..." : "Consultar status novamente"}</Button>
+          <Link href="/minha-assinatura" className="cf-btn">Voltar para meus planos</Link>
+        </div>
+      )}
       {showPixPanel && (
         <div className="cf-pix-result">
           <div className="cf-pix-intro">Escaneie o QR Code ou copie o código Pix para pagar.</div>

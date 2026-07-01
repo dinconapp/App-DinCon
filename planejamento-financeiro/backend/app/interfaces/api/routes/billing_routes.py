@@ -107,6 +107,7 @@ def get_payment(payment_id: str, user_id: str = Query(...), db: Session = Depend
 
 
 @router.post("/webhooks/mercadopago")
+@router.post("/mercadopago/webhook")
 async def mercadopago_webhook(
     request: Request,
     db: Session = Depends(get_db),
