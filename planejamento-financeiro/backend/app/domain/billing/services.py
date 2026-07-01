@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
-PIX_EXPIRATION_MINUTES = 30
+PIX_EXPIRATION_MINUTES = 3
+PIX_EXPIRATION_SECONDS = PIX_EXPIRATION_MINUTES * 60
 
 PLAN_DEFINITIONS = [
     {
@@ -36,19 +37,27 @@ class BillingError(Exception):
 
 
 def payment_expires_at() -> datetime:
-    return datetime.utcnow() + timedelta(minutes=PIX_EXPIRATION_MINUTES)
+    return datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=PIX_EXPIRATION_MINUTES)
+
+
+def payment_expires_in_seconds() -> int:
+    return PIX_EXPIRATION_SECONDS
 
 
 def period_end() -> datetime:
-    return datetime.utcnow() + timedelta(days=30)
+    return datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=30)
 
 
 def map_provider_status(status: str | None) -> str:
     value = (status or "").lower()
     if value == "approved":
         return "paid"
-    if value in {"pending", "in_process", "authorized"}:
+    if value == "in_process":
+        return "processing"
+    if value in {"pending", "authorized"}:
         return "pending"
+    if value == "expired":
+        return "expired"
     if value in {"rejected", "cancelled", "canceled", "refunded", "charged_back"}:
         return "failed"
     return "pending"

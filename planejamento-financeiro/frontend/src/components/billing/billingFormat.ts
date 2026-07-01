@@ -15,12 +15,18 @@ export function formatPaymentMethod(value: string) {
 
 export function formatPaymentStatus(value: string) {
   const labels: Record<string, string> = {
-    pending: "Pendente",
-    paid: "Pago",
+    approved: "Aprovado",
+    paid: "Aprovado",
+    pending: "Aguardando pagamento",
+    processing: "Processando",
+    in_process: "Processando",
     failed: "Falhou",
+    rejected: "Recusado",
     canceled: "Cancelado",
     cancelled: "Cancelado",
-    processing: "Processando",
+    expired: "Expirado",
+    refunded: "Reembolsado",
+    charged_back: "Contestação",
     active: "Ativa",
     inactive: "Inativa",
   };
@@ -28,7 +34,10 @@ export function formatPaymentStatus(value: string) {
 }
 
 export function statusToneClass(value: string) {
-  if (value === "paid" || value === "active") return "cf-billing-status paid";
-  if (value === "pending" || value === "processing") return "cf-billing-status pending";
+  if (value === "paid" || value === "approved" || value === "active") return "cf-billing-status paid";
+  if (value === "pending" || value === "processing" || value === "in_process") return "cf-billing-status pending";
+  if (value === "expired") return "cf-billing-status expired";
+  if (value === "canceled" || value === "cancelled" || value === "refunded") return "cf-billing-status canceled";
+  if (value === "charged_back" || value === "failed" || value === "rejected") return "cf-billing-status failed";
   return "cf-billing-status failed";
 }

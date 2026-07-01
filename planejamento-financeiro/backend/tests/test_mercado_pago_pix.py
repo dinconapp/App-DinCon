@@ -1,4 +1,4 @@
-import re
+﻿import re
 import unittest
 from dataclasses import replace
 from datetime import datetime
@@ -26,6 +26,7 @@ class FakeBillingRepo:
     def __init__(self, plan: Plan, payment: Payment):
         self.plan = plan
         self.payment = payment
+        self.updated_payloads = []
 
     def get_plan_by_code(self, code: str):
         if code != self.plan.code:
@@ -36,15 +37,25 @@ class FakeBillingRepo:
         self.payment = replace(self.payment, **data, id=self.payment.id)
         return self.payment
 
+    def get_payment(self, payment_id: str):
+        if payment_id != self.payment.id:
+            raise LookupError(payment_id)
+        return self.payment
+
     def update_payment(self, payment_id: str, data: dict):
+        self.updated_payloads.append(data)
         self.payment = replace(self.payment, **data)
         return self.payment
 
+    def create_subscription(self, data: dict):
+        return SimpleNamespace(id="sub_1", **data)
+
 
 class FakeMercadoPagoProvider:
-    def __init__(self):
+    def __init__(self, status: str = "pending"):
         self.calls = 0
         self.payloads = []
+        self.status = status
 
     def build_notification_url(self):
         return None
@@ -54,15 +65,22 @@ class FakeMercadoPagoProvider:
         self.payloads.append(payload)
         return {
             "id": "mp_123",
-            "status": "pending",
-            "point_of_interaction": {"transaction_data": {}},
+            "status": self.status,
+            "init_point": "https://example.com/checkout",
+            "point_of_interaction": {
+                "transaction_data": {
+                    "qr_code": "000201010212...",
+                    "qr_code_base64": "base64-qr",
+                    "ticket_url": "https://example.com/ticket",
+                }
+            },
         }
 
     def get_payment(self, provider_payment_id: str):
-        return {"id": provider_payment_id, "status": "pending"}
+        return {"id": provider_payment_id, "status": self.status}
 
 
-class MercadoPagoPixPayloadTests(unittest.TestCase):
+class MercadoPagoBillingTests(unittest.TestCase):
     def setUp(self):
         self.user = SimpleNamespace(id="user_1", email="user@example.com", name="Usuario")
         self.plan = Plan(
@@ -78,15 +96,17 @@ class MercadoPagoPixPayloadTests(unittest.TestCase):
             created_at=datetime(2026, 1, 1, 0, 0, 0),
             updated_at=datetime(2026, 1, 1, 0, 0, 0),
         )
-        self.payment = Payment(
+
+    def make_payment(self, method: str = "pix", status: str = "pending"):
+        return Payment(
             id="pay_1",
             user_id=self.user.id,
             plan_id=self.plan.id,
             subscription_id=None,
             provider="mercadopago",
             provider_payment_id=None,
-            payment_method="pix",
-            status="pending",
+            payment_method=method,
+            status=status,
             amount_cents=self.plan.price_cents,
             currency=self.plan.currency,
             description="DinCon - Plano Pro",
@@ -102,13 +122,8 @@ class MercadoPagoPixPayloadTests(unittest.TestCase):
             updated_at=datetime(2026, 7, 1, 1, 36, 3),
         )
 
-    def test_pix_expiration_uses_utc_iso8601_with_millis_and_z(self):
-        self.assertEqual(format_utc_millis_z(self.payment.expires_at), "2026-07-01T02:06:03.000Z")
-
-    @patch("app.application.billing.use_cases.payment_expires_at", return_value=datetime(2026, 7, 1, 2, 6, 3))
-    def test_pix_checkout_sends_date_of_expiration_with_z_and_calls_real_provider_when_mock_disabled(self, _mock_expires_at):
-        provider = FakeMercadoPagoProvider()
-        billing = FakeBillingRepo(self.plan, self.payment)
+    def make_use_cases(self, payment: Payment, provider: FakeMercadoPagoProvider):
+        billing = FakeBillingRepo(self.plan, payment)
         users = FakeUsersRepo(self.user)
         settings = SimpleNamespace(
             payments_mock_mode=False,
@@ -117,19 +132,106 @@ class MercadoPagoPixPayloadTests(unittest.TestCase):
             app_public_url="",
             api_public_url="https://api.example.com",
         )
-        use_cases = BillingUseCases(billing, users, provider, settings)
+        return BillingUseCases(billing, users, provider, settings), billing
 
-        result = use_cases.create_pix_checkout(self.user.id, self.plan.code)
+    def test_pix_checkout_returns_expiration_and_uses_three_minutes(self):
+        provider = FakeMercadoPagoProvider()
+        use_cases, _ = self.make_use_cases(self.make_payment(), provider)
+
+        with patch("app.application.billing.use_cases.payment_expires_at", return_value=datetime(2026, 7, 1, 2, 6, 3)):
+            result = use_cases.create_pix_checkout(self.user.id, self.plan.code)
 
         self.assertEqual(provider.calls, 1)
-        self.assertEqual(len(provider.payloads), 1)
-        payload = provider.payloads[0]
-        self.assertIn("date_of_expiration", payload)
-        self.assertRegex(payload["date_of_expiration"], PIX_EXPIRATION_PATTERN)
-        self.assertEqual(payload["date_of_expiration"], "2026-07-01T02:06:03.000Z")
-        self.assertNotIn(" ", payload["date_of_expiration"])
-        self.assertTrue(payload["date_of_expiration"].endswith("Z"))
-        self.assertEqual(result["provider_payment_id"], "mp_123")
+        self.assertEqual(result["expires_in_seconds"], 180)
+        self.assertEqual(result["date_of_expiration"], "2026-07-01T02:06:03.000Z")
+        self.assertRegex(result["date_of_expiration"], PIX_EXPIRATION_PATTERN)
+
+    def test_pix_expiration_uses_utc_iso8601_with_millis_and_z(self):
+        self.assertEqual(format_utc_millis_z(self.make_payment().expires_at), "2026-07-01T02:06:03.000Z")
+
+    def test_expire_payment_marks_pending_pix_as_expired(self):
+        provider = FakeMercadoPagoProvider()
+        payment = self.make_payment(status="pending")
+        payment.provider_payment_id = "mp_123"
+        use_cases, billing = self.make_use_cases(payment, provider)
+
+        result = use_cases.expire_payment(self.user.id, payment.id)
+
+        self.assertEqual(result["status"], "expired")
+        self.assertEqual(billing.payment.status, "expired")
+        self.assertEqual(billing.updated_payloads[-1]["status"], "expired")
+        self.assertEqual(billing.updated_payloads[-1]["provider_payload"]["status"], "expired")
+
+    def test_expire_payment_does_not_change_paid_payment(self):
+        provider = FakeMercadoPagoProvider()
+        payment = self.make_payment(status="paid")
+        use_cases, billing = self.make_use_cases(payment, provider)
+
+        result = use_cases.expire_payment(self.user.id, payment.id)
+
+        self.assertEqual(result["status"], "paid")
+        self.assertEqual(billing.payment.status, "paid")
+        self.assertEqual(billing.updated_payloads, [])
+
+    def test_card_checkout_sends_optional_address_when_present(self):
+        provider = FakeMercadoPagoProvider(status="approved")
+        payment = self.make_payment(method="card")
+        use_cases, _ = self.make_use_cases(payment, provider)
+        payload = SimpleNamespace(
+            user_id=self.user.id,
+            plan_code=self.plan.code,
+            card_token="card_token_123",
+            token=None,
+            installments=1,
+            payment_method_id="visa",
+            issuer_id=None,
+            payer_identification_type="CPF",
+            payer_identification_number="123.456.789-00",
+            address=SimpleNamespace(
+                zip_code="00000-000",
+                street_name="Rua das Flores",
+                street_number="S/N",
+                neighborhood="Centro",
+                city="Sao Paulo",
+                federal_unit="sp",
+                complement="Apto 12",
+            ),
+            mock=False,
+        )
+
+        result = use_cases.create_card_checkout(payload)
+
+        self.assertEqual(provider.calls, 1)
+        sent_payload = provider.payloads[0]
+        self.assertEqual(sent_payload["payer"]["address"]["zip_code"], "00000000")
+        self.assertEqual(sent_payload["payer"]["address"]["federal_unit"], "SP")
+        self.assertEqual(sent_payload["payer"]["identification"]["number"], "12345678900")
+        self.assertEqual(result["status"], "paid")
+
+    def test_card_checkout_without_address_still_works(self):
+        provider = FakeMercadoPagoProvider(status="approved")
+        payment = self.make_payment(method="card")
+        use_cases, _ = self.make_use_cases(payment, provider)
+        payload = SimpleNamespace(
+            user_id=self.user.id,
+            plan_code=self.plan.code,
+            card_token="card_token_123",
+            token=None,
+            installments=1,
+            payment_method_id="visa",
+            issuer_id=None,
+            payer_identification_type="CPF",
+            payer_identification_number="12345678900",
+            address=None,
+            mock=False,
+        )
+
+        result = use_cases.create_card_checkout(payload)
+
+        self.assertEqual(provider.calls, 1)
+        sent_payload = provider.payloads[0]
+        self.assertNotIn("address", sent_payload["payer"])
+        self.assertEqual(result["status"], "paid")
 
 
 if __name__ == "__main__":

@@ -84,6 +84,17 @@ def checkout_card(payload: CheckoutCardRequest, db: Session = Depends(get_db), a
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
+@router.patch("/payments/{payment_id}/expire", response_model=PaymentOut)
+def expire_payment(payment_id: str, user_id: str = Query(...), db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
+    assert_user_access(user_id, authenticated_user_id)
+    try:
+        return use_cases(db).expire_payment(user_id, payment_id)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except BillingError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
 @router.get("/payments/{payment_id}", response_model=PaymentOut)
 def get_payment(payment_id: str, user_id: str = Query(...), db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
     assert_user_access(user_id, authenticated_user_id)

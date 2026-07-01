@@ -16,6 +16,7 @@ export type BillingPayment = {
   subscription_id: string | null;
   provider: string;
   provider_payment_id: string | null;
+  provider_payload?: Record<string, unknown> | null;
   payment_method: string;
   status: string;
   amount_cents: number;
@@ -26,9 +27,21 @@ export type BillingPayment = {
   checkout_url: string | null;
   external_reference: string | null;
   sandbox: boolean;
+  date_of_expiration?: string | null;
+  expires_in_seconds?: number | null;
   paid_at: string | null;
   expires_at: string | null;
   created_at: string | null;
+};
+
+export type BillingAddress = {
+  zip_code?: string | null;
+  street_name?: string | null;
+  street_number?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  federal_unit?: string | null;
+  complement?: string | null;
 };
 
 export type BillingSubscription = {

@@ -1,5 +1,5 @@
 import { api } from "./api";
-import type { BillingConfig, BillingPayment, BillingPlan, BillingSubscription } from "@/types/billing";
+import type { BillingAddress, BillingConfig, BillingPayment, BillingPlan, BillingSubscription } from "@/types/billing";
 
 export async function getBillingPlans() {
   const { data } = await api.get<BillingPlan[]>("/billing/plans");
@@ -31,6 +31,7 @@ export async function createCardCheckout(payload: {
   issuer_id?: string | null;
   payer_identification_type?: string | null;
   payer_identification_number?: string | null;
+  address?: BillingAddress | null;
   mock?: boolean;
 }) {
   const { data } = await api.post<BillingPayment>("/billing/checkout/card", payload);
@@ -39,5 +40,10 @@ export async function createCardCheckout(payload: {
 
 export async function getBillingPayment(userId: string, paymentId: string) {
   const { data } = await api.get<BillingPayment>(`/billing/payments/${paymentId}`, { params: { user_id: userId } });
+  return data;
+}
+
+export async function expireBillingPayment(userId: string, paymentId: string) {
+  const { data } = await api.patch<BillingPayment>(`/billing/payments/${paymentId}/expire`, null, { params: { user_id: userId } });
   return data;
 }

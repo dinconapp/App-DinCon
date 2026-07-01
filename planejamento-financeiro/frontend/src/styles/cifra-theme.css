@@ -306,8 +306,58 @@
 .cf-billing-status.paid { color: #83F0C0; background: rgba(67,230,163,.11); border: 1px solid rgba(67,230,163,.25); }
 .cf-billing-status.pending { color: #F4C25A; background: rgba(244,194,90,.1); border: 1px solid rgba(244,194,90,.24); }
 .cf-billing-status.failed { color: #FF9AA4; background: rgba(255,107,122,.1); border: 1px solid rgba(255,107,122,.22); }
+.cf-billing-status.expired { color: #B9C1CF; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
+.cf-billing-status.canceled { color: #B9C1CF; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
+.cf-billing-status.refunded { color: #B9C1CF; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
 .cf-pix-qr { width: min(260px, 100%); padding: 10px; border-radius: 8px; background: #fff; margin-top: 14px; }
 .cf-pix-code { min-height: 92px; padding-top: 10px; resize: vertical; font-size: 12px; }
+.cf-pix-result { display: grid; gap: 14px; margin-top: 16px; align-items: center; justify-items: center; }
+.cf-pix-intro { text-align: center; color: #DCE3EE; font-weight: 600; }
+.cf-pix-qr-shell {
+  width: min(320px, 100%);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.09);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+}
+.cf-pix-qr-shell.expired {
+  opacity: .45;
+  filter: grayscale(.2);
+}
+.cf-pix-qr {
+  width: min(260px, 100%);
+  padding: 10px;
+  border-radius: 12px;
+  background: #fff;
+  margin-top: 0;
+}
+.cf-pix-qr-placeholder {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  color: #8F99A8;
+  text-align: center;
+}
+.cf-pix-code-block { width: min(560px, 100%); display: grid; gap: 12px; justify-items: center; }
+.cf-pix-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; width: 100%; }
+.cf-pix-open-checkout { justify-self: center; }
+.cf-pix-expired-box { display: grid; gap: 12px; justify-items: center; margin: 8px 0 2px; }
+.cf-billing-address { display: grid; gap: 12px; padding: 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
+.cf-billing-address summary { list-style: none; cursor: pointer; display: grid; gap: 4px; color: #DCE3EE; }
+.cf-billing-address summary::-webkit-details-marker { display: none; }
+.cf-billing-address-title { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; }
+.cf-billing-address-grid { margin-top: 4px; }
+.cf-billing-span-2 { grid-column: 1 / -1; }
+.cf-input-append { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.cf-spin { animation: cf-spin 1s linear infinite; color: #43E6A3; }
+.cf-billing-help { margin-top: 4px; }
+
+@keyframes cf-spin {
+  to { transform: rotate(360deg); }
+}
 
 @media (max-width: 960px) {
   .cf-shell { grid-template-columns: 1fr; }
@@ -329,6 +379,10 @@
   .cf-fab { right: 18px; bottom: 78px; }
   .cf-fab-wrap { right: 18px; bottom: 78px; }
   .cf-info-tooltip span { right: 0; top: auto; bottom: calc(100% + 8px); transform: none; width: min(260px, calc(100vw - 36px)); }
+  .cf-pix-qr-shell { width: min(100%, 340px); }
+  .cf-pix-code-block { width: 100%; }
+  .cf-billing-address-grid { grid-template-columns: 1fr; }
+  .cf-billing-span-2 { grid-column: auto; }
 }
 
 /* Landing page overrides kept last because the legacy auth/LP block above shares class names. */

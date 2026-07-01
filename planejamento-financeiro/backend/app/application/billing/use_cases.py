@@ -3,13 +3,17 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.core.exceptions import NotFoundError
-from app.domain.billing.services import BillingError, map_provider_status, payment_expires_at, period_end, safe_provider_payload
+from app.domain.billing.services import BillingError, map_provider_status, payment_expires_at, payment_expires_in_seconds, period_end, safe_provider_payload
 
 logger = logging.getLogger(__name__)
 
 
 def dt(value):
     return value.isoformat() if value else None
+
+
+def utcnow_naive():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def format_utc_millis_z(value: datetime | None) -> str | None:
@@ -43,6 +47,7 @@ def serialize_payment(payment):
         "subscription_id": payment.subscription_id,
         "provider": payment.provider,
         "provider_payment_id": payment.provider_payment_id,
+        "provider_payload": payment.provider_payload,
         "payment_method": payment.payment_method,
         "status": payment.status,
         "amount_cents": payment.amount_cents,
@@ -53,6 +58,8 @@ def serialize_payment(payment):
         "checkout_url": payment.checkout_url,
         "external_reference": payment.external_reference,
         "sandbox": payment.sandbox,
+        "date_of_expiration": format_utc_millis_z(payment.expires_at) if payment.payment_method == "pix" else None,
+        "expires_in_seconds": payment_expires_in_seconds() if payment.payment_method == "pix" and payment.expires_at else None,
         "paid_at": dt(payment.paid_at),
         "expires_at": dt(payment.expires_at),
         "created_at": dt(payment.created_at),
@@ -129,7 +136,7 @@ class BillingUseCases:
                 "provider": "mock",
                 "provider_payment_id": f"mock_card_{payment.id}",
                 "status": "paid",
-                "paid_at": datetime.utcnow(),
+                "paid_at": utcnow_naive(),
                 "provider_payload": {"mock": True, "status": "paid"},
             })
             self._activate_subscription(user, plan, payment)
@@ -148,6 +155,7 @@ class BillingUseCases:
                 issuer_id=payload.issuer_id,
                 payer_identification_type=payload.payer_identification_type,
                 payer_identification_number=payload.payer_identification_number,
+                address=payload.address,
             ))
             payment = self._apply_provider_payload(payment, provider_payload)
             if payment.status == "paid":
@@ -155,11 +163,31 @@ class BillingUseCases:
                 payment = self.billing.get_payment(payment.id)
         return serialize_payment(payment)
 
+    def expire_payment(self, user_id: str, payment_id: str):
+        payment = self.billing.get_payment(payment_id)
+        if payment.user_id != user_id:
+            raise NotFoundError("Pagamento nao encontrado.")
+        if payment.payment_method != "pix":
+            return serialize_payment(payment)
+        if payment.status in {"paid", "failed", "expired", "canceled", "cancelled", "refunded", "charged_back"}:
+            return serialize_payment(payment)
+        if payment.status not in {"pending", "processing"}:
+            return serialize_payment(payment)
+        provider_payload = dict(payment.provider_payload or {})
+        provider_payload["status"] = "expired"
+        provider_payload["expired_at"] = format_utc_millis_z(datetime.now(timezone.utc))
+        updated = self.billing.update_payment(payment.id, {
+            "status": "expired",
+            "provider_payload": provider_payload,
+            "updated_at": utcnow_naive(),
+        })
+        return serialize_payment(updated)
+
     def get_payment(self, user_id: str, payment_id: str):
         payment = self.billing.get_payment(payment_id)
         if payment.user_id != user_id:
             raise NotFoundError("Pagamento nao encontrado.")
-        if not self._use_mock_mode() and payment.provider == "mercadopago" and payment.provider_payment_id and payment.status == "pending":
+        if not self._use_mock_mode() and payment.provider == "mercadopago" and payment.provider_payment_id and payment.status in {"pending", "processing"}:
             provider_payload = self.provider.get_payment(payment.provider_payment_id)
             payment = self._apply_provider_payload(payment, provider_payload)
             if payment.status == "paid" and not payment.subscription_id:
@@ -244,8 +272,16 @@ class BillingUseCases:
             if kwargs.get("payer_identification_type") and kwargs.get("payer_identification_number"):
                 payload["payer"]["identification"] = {
                     "type": kwargs["payer_identification_type"],
-                    "number": kwargs["payer_identification_number"],
+                    "number": self._digits_only(kwargs["payer_identification_number"]),
                 }
+            elif kwargs.get("payer_identification_number"):
+                payload["payer"]["identification"] = {
+                    "type": "CPF",
+                    "number": self._digits_only(kwargs["payer_identification_number"]),
+                }
+            address = self._sanitize_address(kwargs.get("address"))
+            if address:
+                payload["payer"]["address"] = address
         return payload
 
     def _apply_provider_payload(self, payment, payload: dict):
@@ -258,7 +294,8 @@ class BillingUseCases:
             "qr_code_base64": transaction.get("qr_code_base64") or payment.qr_code_base64,
             "checkout_url": transaction.get("ticket_url") or payload.get("init_point") or payment.checkout_url,
             "provider_payload": safe_provider_payload(payload),
-            "paid_at": datetime.utcnow() if status == "paid" and not payment.paid_at else payment.paid_at,
+            "paid_at": utcnow_naive() if status == "paid" and not payment.paid_at else payment.paid_at,
+            "updated_at": utcnow_naive(),
         }
         return self.billing.update_payment(payment.id, data)
 
@@ -269,7 +306,7 @@ class BillingUseCases:
             "status": "active",
             "provider": payment.provider,
             "provider_subscription_id": payment.provider_payment_id,
-            "current_period_start": datetime.utcnow(),
+            "current_period_start": utcnow_naive(),
             "current_period_end": period_end(),
             "cancel_at_period_end": False,
         })
@@ -277,3 +314,40 @@ class BillingUseCases:
 
     def _use_mock_mode(self) -> bool:
         return bool(self.settings.payments_mock_mode and not self.settings.is_production)
+
+    def _sanitize_address(self, address):
+        if not address:
+            return None
+
+        def clean_text(value):
+            if value is None:
+                return None
+            value = str(value).strip()
+            return value or None
+
+        def digits(value):
+            if value is None:
+                return None
+            cleaned = "".join(ch for ch in str(value) if ch.isdigit())
+            return cleaned or None
+
+        cleaned = {
+            "zip_code": digits(getattr(address, "zip_code", None)),
+            "street_name": clean_text(getattr(address, "street_name", None)),
+            "street_number": clean_text(getattr(address, "street_number", None)),
+            "neighborhood": clean_text(getattr(address, "neighborhood", None)),
+            "city": clean_text(getattr(address, "city", None)),
+            "federal_unit": clean_text(getattr(address, "federal_unit", None)),
+            "complement": clean_text(getattr(address, "complement", None)),
+        }
+        if cleaned["federal_unit"]:
+            cleaned["federal_unit"] = cleaned["federal_unit"].upper()[:2]
+        if not any(cleaned.values()):
+            return None
+        return {key: value for key, value in cleaned.items() if value}
+
+    def _digits_only(self, value):
+        if value is None:
+            return None
+        cleaned = "".join(ch for ch in str(value) if ch.isdigit())
+        return cleaned or None

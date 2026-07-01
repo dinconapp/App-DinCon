@@ -2,6 +2,16 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class BillingAddressRequest(BaseModel):
+    zip_code: str | None = Field(default=None, max_length=20)
+    street_name: str | None = Field(default=None, max_length=180)
+    street_number: str | None = Field(default=None, max_length=20)
+    neighborhood: str | None = Field(default=None, max_length=120)
+    city: str | None = Field(default=None, max_length=120)
+    federal_unit: str | None = Field(default=None, max_length=2)
+    complement: str | None = Field(default=None, max_length=120)
+
+
 class CheckoutPixRequest(BaseModel):
     user_id: str
     plan_code: str = Field(min_length=1, max_length=60)
@@ -17,6 +27,7 @@ class CheckoutCardRequest(BaseModel):
     issuer_id: str | None = Field(default=None, max_length=60)
     payer_identification_type: str | None = Field(default=None, max_length=20)
     payer_identification_number: str | None = Field(default=None, max_length=40)
+    address: BillingAddressRequest | None = None
     mock: bool = False
 
 
@@ -38,6 +49,7 @@ class PaymentOut(BaseModel):
     subscription_id: str | None
     provider: str
     provider_payment_id: str | None
+    provider_payload: dict[str, Any] | None = None
     payment_method: str
     status: str
     amount_cents: int
@@ -48,6 +60,8 @@ class PaymentOut(BaseModel):
     checkout_url: str | None
     external_reference: str | None
     sandbox: bool
+    date_of_expiration: str | None = None
+    expires_in_seconds: int | None = None
     paid_at: str | None
     expires_at: str | None
     created_at: str | None
