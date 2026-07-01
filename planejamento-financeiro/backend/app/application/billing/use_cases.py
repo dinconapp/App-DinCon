@@ -109,6 +109,7 @@ class BillingUseCases:
 
     def user_billing(self, user_id: str):
         self.users.get(user_id)
+        self._expire_overdue_pix_payments(user_id)
         return {
             "subscription": serialize_subscription(self.billing.latest_subscription_by_user(user_id)),
             "payments": [serialize_payment(payment) for payment in self.billing.list_payments_by_user(user_id)],
@@ -195,6 +196,7 @@ class BillingUseCases:
         payment = self.billing.get_payment(payment_id)
         if payment.user_id != user_id:
             raise NotFoundError("Pagamento nao encontrado.")
+        payment = self._expire_overdue_pix_payment(payment)
         if not self._use_mock_mode() and payment.provider == "mercadopago" and payment.provider_payment_id and payment.status in {"pending", "processing", "in_process"}:
             provider_payload = self.provider.get_payment(payment.provider_payment_id)
             payment = self._apply_provider_payload(payment, provider_payload, origin="polling")
@@ -334,6 +336,32 @@ class BillingUseCases:
 
     def _use_mock_mode(self) -> bool:
         return bool(self.settings.payments_mock_mode and not self.settings.is_production)
+
+    def _expire_overdue_pix_payments(self, user_id: str):
+        payments = self.billing.list_payments_by_user(user_id)
+        for payment in payments:
+            self._expire_overdue_pix_payment(payment)
+
+    def _expire_overdue_pix_payment(self, payment):
+        if payment.payment_method != "pix":
+            return payment
+        if payment.status not in {"pending", "processing", "in_process"}:
+            return payment
+        if not payment.expires_at:
+            return payment
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        if now < payment.expires_at:
+            return payment
+        provider_payload = dict(payment.provider_payload or {})
+        provider_payload["status"] = "expired"
+        provider_payload["expired_at"] = format_utc_millis_z(datetime.now(timezone.utc))
+        updated = self.billing.update_payment(payment.id, {
+            "status": "expired",
+            "provider_payload": provider_payload,
+            "updated_at": utcnow_naive(),
+        })
+        self._log_payment_transition(updated, payment.status, "expired", "auto_expire")
+        return updated
 
     def _clean_text(self, value):
         if value is None:

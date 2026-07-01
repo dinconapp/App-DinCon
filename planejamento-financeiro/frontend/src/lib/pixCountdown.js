@@ -6,7 +6,8 @@ export function digitsOnly(value) {
 
 export function parseExpirationMs(value) {
   if (!value) return null;
-  const parsed = Date.parse(value);
+  const normalized = typeof value === "string" && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(value) ? `${value}Z` : value;
+  const parsed = Date.parse(normalized);
   return Number.isNaN(parsed) ? null : parsed;
 }
 
