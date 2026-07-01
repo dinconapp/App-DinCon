@@ -30,6 +30,15 @@ type CardAddressState = {
   federal_unit: string;
 };
 
+type PixArtifactState = {
+  payment_id: string;
+  provider_payment_id: string | null;
+  qr_code: string | null;
+  qr_code_base64: string | null;
+  date_of_expiration: string | null;
+  expires_at: string | null;
+};
+
 const EMPTY_ADDRESS: CardAddressState = {
   zip_code: "",
   street_name: "",
@@ -122,16 +131,32 @@ function CheckoutContent() {
   const [pollTimedOut, setPollTimedOut] = useState(false);
   const [refreshingStatus, setRefreshingStatus] = useState(false);
   const [pollToken, setPollToken] = useState(0);
+  const [pixArtifact, setPixArtifact] = useState<PixArtifactState | null>(null);
   const cepLookupRef = useRef<number | null>(null);
   const lastCepLookupRef = useRef("");
   const expireSubmitRef = useRef<string | null>(null);
   const pollSessionRef = useRef<{ paymentId: string; startedAt: number } | null>(null);
 
   const plan = useMemo(() => plans.find((item) => item.code === selectedPlanCode) ?? plans.find((item) => item.code === "pro"), [plans, selectedPlanCode]);
-  const pixExpirationAt = useMemo(() => parseExpirationMs(payment?.date_of_expiration ?? payment?.expires_at), [payment?.date_of_expiration, payment?.expires_at]);
+  const pixExpirationAt = useMemo(
+    () => parseExpirationMs(pixArtifact?.date_of_expiration ?? pixArtifact?.expires_at ?? payment?.date_of_expiration ?? payment?.expires_at),
+    [pixArtifact?.date_of_expiration, pixArtifact?.expires_at, payment?.date_of_expiration, payment?.expires_at],
+  );
   const remainingPixSeconds = payment?.payment_method === "pix" ? getRemainingSeconds(pixExpirationAt ?? 0, pixNow) : 0;
   const pixExpired = payment?.payment_method === "pix" && (payment?.status === "expired" || (payment ? isActivePixStatus(payment.status) && remainingPixSeconds === 0 : false));
   const paymentWatchable = Boolean(payment && isPollingStatus(payment.status));
+
+  function mergePixPayment(next: BillingPayment, current: BillingPayment | null = payment): BillingPayment {
+    if (!current || current.payment_method !== "pix" || next.payment_method !== "pix") return next;
+    return {
+      ...current,
+      ...next,
+      qr_code: next.qr_code || current.qr_code,
+      qr_code_base64: next.qr_code_base64 || current.qr_code_base64,
+      date_of_expiration: next.date_of_expiration || current.date_of_expiration,
+      expires_at: next.expires_at || current.expires_at,
+    };
+  }
 
   useEffect(() => {
     Promise.all([getBillingPlans(), getBillingConfig()])
@@ -173,7 +198,7 @@ function CheckoutContent() {
       if (controller.signal.aborted) return;
       try {
         const next = await getBillingPayment(session.id, payment.id);
-        if (!controller.signal.aborted) setPayment(next);
+        if (!controller.signal.aborted) setPayment((current) => mergePixPayment(next, current));
       } catch {
         if (!controller.signal.aborted) return;
       }
@@ -265,10 +290,18 @@ function CheckoutContent() {
     setError("");
     try {
       const next = nextMethod === "pix" ? await createPixCheckout(session.id, plan.code) : await payWithCard(session.id, plan.code);
-      setPayment(next);
+      setPayment((current) => mergePixPayment(next, current));
       setPollTimedOut(false);
       setPollToken((value) => value + 1);
       if (nextMethod === "pix") {
+        setPixArtifact({
+          payment_id: next.id,
+          provider_payment_id: next.provider_payment_id ?? null,
+          qr_code: next.qr_code ?? null,
+          qr_code_base64: next.qr_code_base64 ?? null,
+          date_of_expiration: next.date_of_expiration ?? null,
+          expires_at: next.expires_at ?? null,
+        });
         setPixNow(Date.now());
         expireSubmitRef.current = null;
       }
@@ -349,7 +382,7 @@ function CheckoutContent() {
     setRefreshingStatus(true);
     try {
       const next = await getBillingPayment(session.id, payment.id);
-      setPayment(next);
+      setPayment((current) => mergePixPayment(next, current));
       setPollTimedOut(false);
       setPollToken((value) => value + 1);
       if (!isTerminalStatus(next.status)) {
@@ -446,6 +479,7 @@ function CheckoutContent() {
               payment={payment}
               pixExpired={Boolean(pixExpired)}
               remainingPixSeconds={remainingPixSeconds}
+              pixArtifact={pixArtifact}
               loading={loading}
               pollTimedOut={pollTimedOut}
               refreshingStatus={refreshingStatus}
@@ -461,6 +495,7 @@ function CheckoutContent() {
 
 function PaymentResult({
   payment,
+  pixArtifact,
   pixExpired,
   remainingPixSeconds,
   loading,
@@ -470,6 +505,7 @@ function PaymentResult({
   onRefreshStatus,
 }: {
   payment: BillingPayment;
+  pixArtifact: PixArtifactState | null;
   pixExpired: boolean;
   remainingPixSeconds: number;
   loading: boolean;
@@ -479,10 +515,12 @@ function PaymentResult({
   onRefreshStatus: () => Promise<void>;
 }) {
   const isPix = payment.payment_method === "pix";
-  const showPixPanel = isPix && !["paid", "approved", "rejected", "cancelled", "canceled", "refunded", "charged_back", "failed"].includes(payment.status);
+  const showPixPanel = isPix && !["paid", "approved", "rejected", "cancelled", "canceled", "refunded", "charged_back", "failed", "expired"].includes(payment.status);
   const statusLabel = formatPaymentStatus(payment.status);
   const statusClass = statusToneClass(payment.status);
-  const expirationValue = payment.date_of_expiration ?? payment.expires_at;
+  const qrCode = pixArtifact?.qr_code ?? payment.qr_code;
+  const qrCodeBase64 = pixArtifact?.qr_code_base64 ?? payment.qr_code_base64;
+  const expirationValue = pixArtifact?.date_of_expiration ?? pixArtifact?.expires_at ?? payment.date_of_expiration ?? payment.expires_at;
   const isAwaitingReview = isPollingStatus(payment.status);
   const analysisMessage = payment.payment_method === "card" && (payment.status === "processing" || payment.status === "in_process")
     ? "Seu pagamento está em análise pelo Mercado Pago. Assim que for aprovado, seu plano será liberado automaticamente."
@@ -495,8 +533,8 @@ function PaymentResult({
     : "";
 
   async function copyPix() {
-    if (!payment.qr_code || pixExpired) return;
-    await navigator.clipboard.writeText(payment.qr_code);
+    if (!qrCode || pixExpired) return;
+    await navigator.clipboard.writeText(qrCode);
   }
 
   return (
@@ -536,15 +574,15 @@ function PaymentResult({
         <div className="cf-pix-result">
           <div className="cf-pix-intro">Escaneie o QR Code ou copie o código Pix para pagar.</div>
           <div className={`cf-pix-qr-shell ${pixExpired ? "expired" : ""}`}>
-            {payment.qr_code_base64 && !pixExpired ? (
-              <img className="cf-pix-qr" src={`data:image/png;base64,${payment.qr_code_base64}`} alt="QR Code Pix" />
+            {qrCodeBase64 && !pixExpired ? (
+              <img className="cf-pix-qr" src={`data:image/png;base64,${qrCodeBase64}`} alt="QR Code Pix" />
             ) : (
               <div className="cf-pix-qr cf-pix-qr-placeholder">QR Code indisponível.</div>
             )}
           </div>
-          {payment.qr_code && (
+          {qrCode && (
             <div className="cf-pix-code-block">
-              <textarea className="cf-input cf-pix-code" readOnly value={payment.qr_code} />
+              <textarea className="cf-input cf-pix-code" readOnly value={qrCode} />
               <div className="cf-pix-actions">
                 <Button type="button" onClick={copyPix} disabled={pixExpired}>Copiar código Pix</Button>
               </div>
