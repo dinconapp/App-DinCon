@@ -309,21 +309,27 @@ class BillingUseCases:
         provider_status_detail = str(payload.get("status_detail") or "").lower()
         status = map_provider_status(provider_status)
         if payment.payment_method == "pix":
-            if provider_status == "expired" or (provider_status in {"cancelled", "canceled"} and provider_status_detail == "expired"):
-                status = "expired"
+            provider_expired = provider_status == "expired" or (provider_status in {"cancelled", "canceled"} and provider_status_detail == "expired")
         transaction = payload.get("point_of_interaction", {}).get("transaction_data", {})
         approved_at = self._parse_provider_datetime(payload.get("date_approved"))
         expiration = self._parse_provider_datetime(payload.get("date_of_expiration") or payload.get("date_of_expiration_utc"))
         is_expired_by_date = bool(expiration and expiration <= datetime.now(timezone.utc).replace(tzinfo=None))
         if payment.payment_method == "pix" and is_expired_by_date and status in {"pending", "processing", "in_process"}:
             status = "expired"
+        if payment.payment_method == "pix" and not is_expired_by_date and provider_status in {"expired", "cancelled", "canceled"}:
+            if provider_status_detail == "expired" or provider_expired:
+                status = previous if previous in {"pending", "processing", "in_process"} else "pending"
         data = {
             "provider_payment_id": str(payload.get("id")) if payload.get("id") else payment.provider_payment_id,
             "status": status,
             "qr_code": None if status == "expired" else transaction.get("qr_code") or payment.qr_code,
             "qr_code_base64": None if status == "expired" else transaction.get("qr_code_base64") or payment.qr_code_base64,
             "checkout_url": transaction.get("ticket_url") or payload.get("init_point") or payment.checkout_url,
-            "provider_payload": safe_provider_payload(payload),
+            "provider_payload": safe_provider_payload({
+                **payload,
+                "status": "pending" if payment.payment_method == "pix" and not is_expired_by_date and provider_status in {"expired", "cancelled", "canceled"} and (provider_status_detail == "expired" or provider_expired) else payload.get("status"),
+                "status_detail": "pending_waiting_transfer" if payment.payment_method == "pix" and not is_expired_by_date and provider_status in {"expired", "cancelled", "canceled"} and (provider_status_detail == "expired" or provider_expired) else payload.get("status_detail"),
+            }),
             "paid_at": approved_at or (utcnow_naive() if status == "paid" and not payment.paid_at else payment.paid_at),
             "updated_at": utcnow_naive(),
         }

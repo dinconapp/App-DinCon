@@ -286,7 +286,7 @@ class MercadoPagoBillingTests(unittest.TestCase):
         self.assertEqual(billing.payment.status, "expired")
         self.assertEqual(billing.payment.provider_payload["status"], "expired")
 
-    def test_cancelled_pix_with_expired_detail_is_exposed_as_expired(self):
+    def test_cancelled_pix_with_expired_detail_before_deadline_stays_pending(self):
         provider = FakeMercadoPagoProvider(status="cancelled", status_detail="expired")
         payment = self.make_payment(method="pix", status="pending")
         payment.provider_payment_id = "mp_123"
@@ -298,10 +298,11 @@ class MercadoPagoBillingTests(unittest.TestCase):
         result = use_cases.get_payment(self.user.id, payment.id)
 
         self.assertEqual(provider.calls, 1)
-        self.assertEqual(result["status"], "expired")
-        self.assertIsNone(result["qr_code"])
-        self.assertIsNone(result["qr_code_base64"])
-        self.assertEqual(billing.payment.status, "expired")
+        self.assertEqual(result["status"], "pending")
+        self.assertEqual(result["status_detail"], "pending_waiting_transfer")
+        self.assertEqual(result["qr_code"], "000201010212...")
+        self.assertEqual(result["qr_code_base64"], "base64-qr")
+        self.assertEqual(billing.payment.status, "pending")
 
 
 if __name__ == "__main__":
