@@ -115,7 +115,7 @@ export default function MySubscriptionPage() {
                         {payment.status_detail && <div className="cf-help-text">{formatPaymentStatusDetail(payment.status_detail)}</div>}
                       </div>
                       <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
-                        <span className={statusToneClass(payment.status)}>{formatPaymentStatus(payment.status)}</span>
+                        <span className={statusToneClass(payment.status, payment.status_detail)}>{formatPaymentStatus(payment.status, payment.status_detail)}</span>
                         {watchable && (
                           <Button type="button" onClick={() => refreshPaymentManually(payment.id)} disabled={refreshingPaymentId === payment.id}>
                             {refreshingPaymentId === payment.id ? "Consultando..." : "Consultar status"}

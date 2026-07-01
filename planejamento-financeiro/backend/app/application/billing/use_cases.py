@@ -118,6 +118,7 @@ class BillingUseCases:
     def create_pix_checkout(self, user_id: str, plan_code: str):
         user = self.users.get(user_id)
         plan = self.billing.get_plan_by_code(plan_code)
+        self._expire_overdue_pix_payments(user_id)
         payment = self._create_pending_payment(user, plan, "pix")
         if self._use_mock_mode():
             payment = self.billing.update_payment(payment.id, {
@@ -304,20 +305,41 @@ class BillingUseCases:
 
     def _apply_provider_payload(self, payment, payload: dict, origin: str = "provider_sync"):
         previous = payment.status
-        status = map_provider_status(payload.get("status"))
+        provider_status = str(payload.get("status") or "").lower()
+        provider_status_detail = str(payload.get("status_detail") or "").lower()
+        status = map_provider_status(provider_status)
+        if payment.payment_method == "pix":
+            if provider_status == "expired" or (provider_status in {"cancelled", "canceled"} and provider_status_detail == "expired"):
+                status = "expired"
         transaction = payload.get("point_of_interaction", {}).get("transaction_data", {})
         approved_at = self._parse_provider_datetime(payload.get("date_approved"))
+        expiration = self._parse_provider_datetime(payload.get("date_of_expiration") or payload.get("date_of_expiration_utc"))
+        is_expired_by_date = bool(expiration and expiration <= datetime.now(timezone.utc).replace(tzinfo=None))
+        if payment.payment_method == "pix" and is_expired_by_date and status in {"pending", "processing", "in_process"}:
+            status = "expired"
         data = {
             "provider_payment_id": str(payload.get("id")) if payload.get("id") else payment.provider_payment_id,
             "status": status,
-            "qr_code": transaction.get("qr_code") or payment.qr_code,
-            "qr_code_base64": transaction.get("qr_code_base64") or payment.qr_code_base64,
+            "qr_code": None if status == "expired" else transaction.get("qr_code") or payment.qr_code,
+            "qr_code_base64": None if status == "expired" else transaction.get("qr_code_base64") or payment.qr_code_base64,
             "checkout_url": transaction.get("ticket_url") or payload.get("init_point") or payment.checkout_url,
             "provider_payload": safe_provider_payload(payload),
             "paid_at": approved_at or (utcnow_naive() if status == "paid" and not payment.paid_at else payment.paid_at),
             "updated_at": utcnow_naive(),
         }
         updated = self.billing.update_payment(payment.id, data)
+        if payment.payment_method == "pix" and status == "expired":
+            updated = self.billing.update_payment(updated.id, {
+                "status": "expired",
+                "qr_code": None,
+                "qr_code_base64": None,
+                "provider_payload": {
+                    **(updated.provider_payload or {}),
+                    "status": "expired",
+                    "expired_at": format_utc_millis_z(datetime.now(timezone.utc)),
+                },
+                "updated_at": utcnow_naive(),
+            })
         self._log_payment_transition(updated, previous, status, origin)
         return updated
 
@@ -338,7 +360,10 @@ class BillingUseCases:
         return bool(self.settings.payments_mock_mode and not self.settings.is_production)
 
     def _expire_overdue_pix_payments(self, user_id: str):
-        payments = self.billing.list_payments_by_user(user_id)
+        list_payments = getattr(self.billing, "list_payments_by_user", None)
+        if not callable(list_payments):
+            return
+        payments = list_payments(user_id)
         for payment in payments:
             self._expire_overdue_pix_payment(payment)
 
@@ -478,8 +503,12 @@ class BillingUseCases:
     def _log_payment_transition(self, payment, old_status: str, new_status: str, origin: str):
         provider_payload = payment.provider_payload if isinstance(payment.provider_payload, dict) else {}
         status_detail = provider_payload.get("status_detail") or provider_payload.get("status_reason") or provider_payload.get("detail")
+        expires_at = payment.expires_at
+        if expires_at and expires_at.tzinfo is not None:
+            expires_at = expires_at.astimezone(timezone.utc).replace(tzinfo=None)
+        is_expired_by_date = bool(expires_at and expires_at <= datetime.now(timezone.utc).replace(tzinfo=None))
         logger.info(
-            "mercadopago.payment.transition origin=%s payment_id=%s provider_payment_id=%s external_reference=%s old_status=%s new_status=%s status_detail=%s",
+            "mercadopago.payment.transition origin=%s payment_id=%s provider_payment_id=%s external_reference=%s old_status=%s new_status=%s status_detail=%s is_expired_by_date=%s",
             origin,
             payment.id,
             payment.provider_payment_id,
@@ -487,4 +516,5 @@ class BillingUseCases:
             old_status,
             new_status,
             status_detail,
+            is_expired_by_date,
         )

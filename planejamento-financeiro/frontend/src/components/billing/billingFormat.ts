@@ -13,7 +13,10 @@ export function formatPaymentMethod(value: string) {
   return value || "-";
 }
 
-export function formatPaymentStatus(value: string) {
+export function formatPaymentStatus(value: string, detail?: string | null) {
+  const normalized = String(value ?? "").toLowerCase();
+  const normalizedDetail = String(detail ?? "").toLowerCase();
+  if ((normalized === "cancelled" || normalized === "canceled") && normalizedDetail === "expired") return "Expirado";
   const labels: Record<string, string> = {
     approved: "Aprovado",
     paid: "Aprovado",
@@ -30,7 +33,7 @@ export function formatPaymentStatus(value: string) {
     active: "Ativa",
     inactive: "Inativa",
   };
-  return labels[value] ?? value;
+  return labels[normalized] ?? value;
 }
 
 export function formatPaymentStatusDetail(value?: string | null) {
@@ -43,6 +46,7 @@ export function formatPaymentStatusDetail(value?: string | null) {
     cc_rejected_insufficient_amount: "Limite insuficiente.",
     cc_rejected_call_for_authorize: "O banco solicitou autorização da compra.",
     cc_rejected_other_reason: "Pagamento recusado. Tente outro cartão ou entre em contato com o banco.",
+    expired: "Este Pix expirou. Gere um novo QR Code.",
   };
   return labels[value] ?? value;
 }
@@ -54,12 +58,14 @@ export function maskProviderPaymentId(value?: string | null) {
   return `${normalized.slice(0, 4)}…${normalized.slice(-4)}`;
 }
 
-export function statusToneClass(value: string) {
-  if (value === "paid" || value === "approved" || value === "active") return "cf-billing-status paid";
-  if (value === "pending") return "cf-billing-status pending";
-  if (value === "processing" || value === "in_process") return "cf-billing-status alert";
-  if (value === "expired") return "cf-billing-status expired";
-  if (value === "canceled" || value === "cancelled" || value === "refunded") return "cf-billing-status canceled";
-  if (value === "charged_back" || value === "failed" || value === "rejected") return "cf-billing-status failed";
+export function statusToneClass(value: string, detail?: string | null) {
+  const normalized = String(value ?? "").toLowerCase();
+  const normalizedDetail = String(detail ?? "").toLowerCase();
+  if (normalized === "expired" || ((normalized === "cancelled" || normalized === "canceled") && normalizedDetail === "expired")) return "cf-billing-status expired";
+  if (normalized === "paid" || normalized === "approved" || normalized === "active") return "cf-billing-status paid";
+  if (normalized === "pending") return "cf-billing-status pending";
+  if (normalized === "processing" || normalized === "in_process") return "cf-billing-status alert";
+  if (normalized === "canceled" || normalized === "cancelled" || normalized === "refunded") return "cf-billing-status canceled";
+  if (normalized === "charged_back" || normalized === "failed" || normalized === "rejected") return "cf-billing-status failed";
   return "cf-billing-status failed";
 }
