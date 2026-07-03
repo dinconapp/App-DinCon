@@ -21,14 +21,6 @@ class UserModel(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     email: Mapped[str | None] = mapped_column(String(180))
     phone: Mapped[str | None] = mapped_column(String(30))
-    zip_code: Mapped[str | None] = mapped_column(String(20))
-    address_number: Mapped[str | None] = mapped_column(String(30))
-    residence_type: Mapped[str | None] = mapped_column(String(30))
-    street_name: Mapped[str | None] = mapped_column(String(180))
-    neighborhood: Mapped[str | None] = mapped_column(String(120))
-    city: Mapped[str | None] = mapped_column(String(120))
-    federal_unit: Mapped[str | None] = mapped_column(String(2))
-    complement: Mapped[str | None] = mapped_column(String(120))
     password_hash: Mapped[str | None] = mapped_column(String(255))
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -44,6 +36,26 @@ class UserModel(Base):
 
     budgets = relationship("BudgetModel", back_populates="user")
     transactions = relationship("TransactionModel", back_populates="user")
+    address = relationship("UserAddressModel", back_populates="user", cascade="all, delete-orphan", uselist=False)
+
+
+class UserAddressModel(Base):
+    __tablename__ = "user_addresses"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, unique=True)
+    zip_code: Mapped[str | None] = mapped_column(String(20))
+    address_number: Mapped[str | None] = mapped_column(String(30))
+    residence_type: Mapped[str | None] = mapped_column(String(30))
+    street_name: Mapped[str | None] = mapped_column(String(180))
+    neighborhood: Mapped[str | None] = mapped_column(String(120))
+    city: Mapped[str | None] = mapped_column(String(120))
+    federal_unit: Mapped[str | None] = mapped_column(String(2))
+    complement: Mapped[str | None] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("UserModel", back_populates="address")
 
 
 class EmailVerificationAttemptModel(Base):
