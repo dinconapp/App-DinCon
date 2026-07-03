@@ -1,5 +1,5 @@
 import logging
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from app.application.categories.use_cases import CategoryUseCases
 from app.application.common import model_to_dict
@@ -51,6 +51,33 @@ def serialize_draft(draft):
     return model_to_dict(draft, DRAFT_FIELDS)
 
 
+def subscription_allows_whatsapp(subscription) -> bool:
+    if not subscription or not getattr(subscription, "plan", None):
+        return False
+    if subscription.plan.code != "pro":
+        return False
+    if str(getattr(subscription, "status", "")).lower() not in {"active", "paid", "trialing"}:
+        return False
+    current_period_end = getattr(subscription, "current_period_end", None)
+    if current_period_end and current_period_end <= datetime.now(timezone.utc).replace(tzinfo=None):
+        return False
+    return True
+
+
+def get_whatsapp_subscription(billing, user_id: str):
+    active_getter = getattr(billing, "active_subscription_by_user", None)
+    if callable(active_getter):
+        active = active_getter(user_id)
+        if subscription_allows_whatsapp(active):
+            return active
+    latest_getter = getattr(billing, "latest_subscription_by_user", None)
+    if callable(latest_getter):
+        latest = latest_getter(user_id)
+        if subscription_allows_whatsapp(latest):
+            return latest
+    return None
+
+
 class WhatsAppAccountUseCases:
     def __init__(self, accounts, users, billing):
         self.accounts = accounts
@@ -58,11 +85,9 @@ class WhatsAppAccountUseCases:
         self.billing = billing
 
     def _require_whatsapp_plan(self, user_id: str):
-        subscription = getattr(self.billing, "active_subscription_by_user", None)
-        if callable(subscription):
-            active = subscription(user_id)
-            if active and getattr(active, "plan", None) and active.plan.code == "pro":
-                return active
+        active = get_whatsapp_subscription(self.billing, user_id)
+        if active:
+            return active
         raise BusinessRuleError("O uso pelo WhatsApp está disponível no Plano WhatsApp.")
 
     def list(self, user_id: str):
@@ -129,12 +154,7 @@ class WhatsAppWebhookUseCases:
         self.transcriber = transcriber
 
     def _whatsapp_plan_active(self, user_id: str) -> bool:
-        getter = getattr(self.billing, "active_subscription_by_user", None)
-        if callable(getter):
-            subscription = getter(user_id)
-            if subscription and getattr(subscription, "plan", None) and subscription.plan.code == "pro":
-                return True
-        return False
+        return bool(get_whatsapp_subscription(self.billing, user_id))
 
     def handle_twilio_webhook(self, form: dict) -> str:
         incoming = self.provider.parse_webhook(form)

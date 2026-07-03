@@ -29,7 +29,7 @@ export function useProfile(userId: string) {
     health,
     loading,
     reload: load,
-    save: async (payload: Pick<User, "name" | "email" | "phone"> & Partial<Pick<User, "initial_balance" | "base_month">>) => {
+    save: async (payload: Pick<User, "name" | "email" | "phone" | "zip_code" | "address_number" | "residence_type"> & Partial<Pick<User, "initial_balance" | "base_month">>) => {
       const updated = await updateUser(userId, payload);
       setProfile(updated);
       return updated;

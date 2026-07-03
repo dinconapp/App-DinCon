@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { FinanceShell } from "@/components/layout/FinanceShell";
 
 export default function Page() {
-  return <FinanceShell active="contas" />;
+  return (
+    <Suspense fallback={<div className="cf-card">Carregando...</div>}>
+      <FinanceShell active="contas" />
+    </Suspense>
+  );
 }

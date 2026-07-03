@@ -16,7 +16,7 @@ const titles: Record<string, { title: string; subtitle: string; action?: string 
   transacoes: { title: "Lançamentos", subtitle: "Consulte tudo que entrou e saiu no mês." },
   contas: { title: "Contas", subtitle: "Acompanhe contas fixas pendentes, pagas e atrasadas." },
   cofrinho: { title: "Cofrinho", subtitle: "Projete seus investimentos e acompanhe a evolução mês a mês." },
-  perfil: { title: "Perfil", subtitle: "Gerencie seus dados, segurança, integrações e assinatura." }
+  perfil: { title: "Perfil", subtitle: "Gerencie seus dados pessoais, segurança, integrações e assinatura." }
 };
 
 export function Topbar({

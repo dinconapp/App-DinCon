@@ -11,12 +11,12 @@ export async function getUserByEmail(email: string) {
   return data;
 }
 
-export async function createUser(payload: Pick<User, "name" | "email" | "phone"> & Partial<Pick<User, "initial_balance" | "base_month">>) {
+export async function createUser(payload: Pick<User, "name" | "email" | "phone" | "zip_code" | "address_number" | "residence_type"> & Partial<Pick<User, "initial_balance" | "base_month">>) {
   const { data } = await api.post<User>("/users", payload);
   return data;
 }
 
-export async function updateUser(userId: string, payload: Pick<User, "name" | "email" | "phone"> & Partial<Pick<User, "initial_balance" | "base_month">>) {
+export async function updateUser(userId: string, payload: Pick<User, "name" | "email" | "phone" | "zip_code" | "address_number" | "residence_type"> & Partial<Pick<User, "initial_balance" | "base_month">>) {
   const { data } = await api.put<User>(`/users/${userId}`, payload);
   return data;
 }

@@ -3,6 +3,14 @@ export type User = {
   name: string;
   email?: string | null;
   phone?: string | null;
+  zip_code?: string | null;
+  address_number?: string | null;
+  residence_type?: string | null;
+  street_name?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  federal_unit?: string | null;
+  complement?: string | null;
   initial: string;
   initial_balance: number;
   base_month: string;
