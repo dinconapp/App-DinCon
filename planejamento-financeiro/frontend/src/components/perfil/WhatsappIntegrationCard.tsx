@@ -11,7 +11,7 @@ function displayPhone(value: string) {
   return value.replace("whatsapp:", "");
 }
 
-export function WhatsappIntegrationCard({ userId, onDone }: { userId: string; onDone: (message: string) => void }) {
+export function WhatsappIntegrationCard({ userId, onDone }: { userId: string; onDone: (message: string, tone?: "success" | "error") => void }) {
   const { items, loading, create, remove } = useWhatsappAccounts(userId);
   const [phone, setPhone] = useState("+55 ");
   const [error, setError] = useState("");
@@ -24,15 +24,24 @@ export function WhatsappIntegrationCard({ userId, onDone }: { userId: string; on
       setError("Informe o telefone em formato internacional. Ex.: +55 11 99999-9999.");
       return;
     }
-    await create(normalizedPhone, "Principal");
-    setError("");
-    setPhone("+55 ");
-    onDone("WhatsApp vinculado");
+    try {
+      await create(normalizedPhone, "Principal");
+      setError("");
+      setPhone("+55 ");
+      onDone("WhatsApp vinculado com sucesso.");
+    } catch {
+      setError("Não foi possível vincular o WhatsApp. Tente novamente.");
+      onDone("Não foi possível vincular o WhatsApp. Tente novamente.", "error");
+    }
   }
 
   async function removeAccount(id: string) {
-    await remove(id);
-    onDone("Vinculo removido");
+    try {
+      await remove(id);
+      onDone("Vínculo removido com sucesso.");
+    } catch {
+      onDone("Não foi possível remover o vínculo. Tente novamente.", "error");
+    }
   }
 
   return (

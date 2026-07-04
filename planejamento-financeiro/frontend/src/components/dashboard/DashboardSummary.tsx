@@ -8,12 +8,10 @@ import { VariableExpensesPanel } from "./VariableExpensesPanel";
 import { IncomePanel } from "./IncomePanel";
 import { BillsPanel } from "./BillsPanel";
 import { CategoryDonutChart } from "./CategoryDonutChart";
-import { BalanceProjectionChart } from "./BalanceProjectionChart";
-import { RankingCard } from "./RankingCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export function DashboardPage({ userId, monthKey }: { userId: string; monthKey: string }) {
-  const { data, projection, loading, error } = useDashboard(userId, monthKey);
+  const { data, loading, error } = useDashboard(userId, monthKey);
   if (loading) return <div className="cf-card">Carregando dashboard...</div>;
   if (error || !data) return <div className="cf-card">{error ?? "Dashboard indisponível."}</div>;
 
@@ -33,10 +31,6 @@ export function DashboardPage({ userId, monthKey }: { userId: string; monthKey: 
       </div>
       <div className="cf-grid cf-two">
         <BillsPanel pending={data.pending_bills} paid={data.paid_bills} />
-        <RankingCard label={data.ranking_label} position={data.ranking_position} />
-      </div>
-      <div className="cf-grid cf-two">
-        <BalanceProjectionChart projection={projection} />
         <CategoryDonutChart data={data.expenses_by_category} />
       </div>
     </div>

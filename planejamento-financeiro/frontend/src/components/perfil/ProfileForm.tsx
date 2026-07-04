@@ -24,8 +24,9 @@ function hasActivePaidPlan(billing: BillingOverview | null) {
   return Boolean(billing?.has_active_subscription && billing?.current_plan?.code === "pro");
 }
 
-export function ProfileForm({ userId, onInitial, onDone }: { userId: string; onInitial: (initial: string) => void; onDone: (message: string) => void }) {
+export function ProfileForm({ userId, onInitial, onDone }: { userId: string; onInitial: (initial: string) => void; onDone: (message: string, tone?: "success" | "error") => void }) {
   const { profile, loading, save } = useProfile(userId);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -42,6 +43,10 @@ export function ProfileForm({ userId, onInitial, onDone }: { userId: string; onI
   const [billing, setBilling] = useState<BillingOverview | null>(null);
   const [cepStatus, setCepStatus] = useState("");
   const canUseWhatsApp = hasActivePaidPlan(billing);
+
+  function requiredMessage(label: string) {
+    return `${label} obrigatório.`;
+  }
 
   useEffect(() => {
     if (profile) {
@@ -109,12 +114,19 @@ export function ProfileForm({ userId, onInitial, onDone }: { userId: string; onI
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (form.zip_code && form.zip_code.replace(/\D/g, "").length !== 8) {
-      onDone("CEP inválido. Informe 8 dígitos.");
+      onDone("CEP inválido. Informe 8 dígitos.", "error");
       return;
     }
-    const updated = await save(form);
-    updateSessionProfile({ name: updated.name, email: updated.email, phone: updated.phone });
-    onDone("Perfil salvo");
+    setSaving(true);
+    try {
+      const updated = await save(form);
+      updateSessionProfile({ name: updated.name, email: updated.email, phone: updated.phone });
+      onDone("Dados salvos com sucesso.");
+    } catch {
+      onDone("Não foi possível salvar os dados. Tente novamente.", "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading || !profile) return <div className="cf-card">Carregando perfil...</div>;
@@ -127,26 +139,26 @@ export function ProfileForm({ userId, onInitial, onDone }: { userId: string; onI
             <div className="cf-grid cf-two">
               <label>E-mail<input className="cf-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
               <PhoneField value={form.phone} onChange={(phone) => setForm({ ...form, phone })} />
-              <label>Nome<input className="cf-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
+              <label>Nome<input className="cf-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} onInvalid={(event) => event.currentTarget.setCustomValidity(requiredMessage("Nome"))} onInput={(event) => event.currentTarget.setCustomValidity("")} required /></label>
               <label>CEP<input className="cf-input" inputMode="numeric" placeholder="00000-000" maxLength={9} value={form.zip_code} onChange={(e) => setForm({ ...form, zip_code: maskCep(e.target.value) })} /></label>
               <label>Número<input className="cf-input" inputMode="text" placeholder="Ex: 123" value={form.address_number} onChange={(e) => setForm({ ...form, address_number: e.target.value })} /></label>
               <label>Casa ou Apartamento
-                <select className="cf-input" value={form.residence_type} onChange={(e) => setForm({ ...form, residence_type: e.target.value })}>
+                <select className="cf-input cf-select" value={form.residence_type} onChange={(e) => setForm({ ...form, residence_type: e.target.value })}>
                   <option value="">Selecione</option>
-                  <option value="house">Casa</option>
-                  <option value="apartment">Apartamento</option>
+                  <option className="bg-slate-900 text-slate-100" value="house">Casa</option>
+                  <option className="bg-slate-900 text-slate-100" value="apartment">Apartamento</option>
                 </select>
               </label>
             </div>
             {cepStatus && <div className="cf-help-text">{cepStatus}</div>}
             <div className="cf-grid cf-two">
-              <label>Rua<input className="cf-input" value={form.street_name} readOnly /></label>
-              <label>Bairro<input className="cf-input" value={form.neighborhood} readOnly /></label>
-              <label>Cidade<input className="cf-input" value={form.city} readOnly /></label>
-              <label>UF<input className="cf-input" value={form.federal_unit} readOnly /></label>
-              <label>Complemento<input className="cf-input" value={form.complement} readOnly /></label>
+              <label>Rua<input className="cf-input" value={form.street_name} onChange={(e) => setForm({ ...form, street_name: e.target.value })} /></label>
+              <label>Bairro<input className="cf-input" value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} /></label>
+              <label>Cidade<input className="cf-input" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label>
+              <label>UF<input className="cf-input" value={form.federal_unit} onChange={(e) => setForm({ ...form, federal_unit: e.target.value.toUpperCase() })} maxLength={2} /></label>
+              <label>Complemento<input className="cf-input" value={form.complement} onChange={(e) => setForm({ ...form, complement: e.target.value })} /></label>
             </div>
-            <Button variant="primary" type="submit">Salvar dados pessoais</Button>
+            <Button variant="primary" type="submit" disabled={saving}>Salvar dados pessoais</Button>
           </form>
         </Card>
         <Card title="Segurança">

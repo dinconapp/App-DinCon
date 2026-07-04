@@ -21,6 +21,7 @@ class TransactionUseCases:
         self.transactions = transactions
         self.categories = categories
         self.budgets = budgets
+        self.db = transactions.db
 
     def list(self, user_id: str, month_key: str, filters: dict):
         rows = self.transactions.list_by_user_month(user_id, month_key, filters)
@@ -39,9 +40,29 @@ class TransactionUseCases:
         self._validate_links(payload)
         return serialize_transaction(self.transactions.update(transaction_id, payload.model_dump()))
 
-    def delete(self, transaction_id: str):
-        self.transactions.delete(transaction_id)
-        return {"deleted": True}
+    def delete(self, transaction_id: str, user_id: str):
+        try:
+            transaction = self.transactions.get_by_id_and_user_id(transaction_id, user_id)
+            budget_id = transaction.budget_id
+            self.transactions.delete(transaction_id, commit=False)
+            self.db.flush()
+            deleted_budget_id = None
+            if budget_id:
+                remaining = self.transactions.count_by_budget_id(budget_id, user_id)
+                if remaining == 0:
+                    budget = self.budgets.get_by_id_and_user_id(budget_id, user_id)
+                    self.budgets.delete(budget.id, commit=False)
+                    deleted_budget_id = budget.id
+            self.db.commit()
+            return {
+                "status": "success",
+                "message": "Registro excluído com sucesso.",
+                "deleted_transaction_id": transaction_id,
+                "deleted_budget_id": deleted_budget_id,
+            }
+        except Exception:
+            self.db.rollback()
+            raise
 
     def _validate_links(self, payload):
         if payload.kind == "expense" and not payload.category_id:

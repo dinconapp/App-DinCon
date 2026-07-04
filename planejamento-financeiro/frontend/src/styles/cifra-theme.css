@@ -143,7 +143,8 @@
 .cf-btn.primary { background: linear-gradient(135deg, #34E0A1, #9D8BFF); color: #07100d; border: 0; font-weight: 800; }
 .cf-icon-btn { width: 38px; padding: 0; }
 .cf-input, .cf-select { width: 100%; background: rgba(255,255,255,.055); border: 1px solid rgba(255,255,255,.1); color: #fff; border-radius: 8px; min-height: 42px; padding: 0 12px; }
-.cf-select option { color: #10151D; }
+.cf-select { color-scheme: dark; }
+.cf-select option { background: #10151D; color: #F3F6FA; }
 .cf-form { display: grid; gap: 12px; }
 .cf-form label { display: grid; gap: 6px; color: #B9C1CF; font-size: 13px; }
 .cf-modal-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.64); display: grid; place-items: center; padding: 18px; }
@@ -288,11 +289,23 @@
 .cf-lp-features h2 { margin: 14px 0 8px; font-size: 15px; }
 .cf-lp-features p { margin: 0; color: #8F99A8; font-size: 13px; line-height: 1.5; }
 .cf-auth-page { display: grid; place-items: center; padding: 28px 18px; }
-.cf-auth-logo img { width: 210px; height: auto; margin-bottom: 18px; }
+.cf-auth-page.compact { padding: 36px 18px 48px; }
+.cf-auth-logo img { width: clamp(240px, 28vw, 320px); height: auto; margin-bottom: 18px; }
+.cf-auth-logo.compact img { width: clamp(240px, 28vw, 320px); margin-bottom: 22px; }
 .cf-auth-card { width: min(440px, 100%); padding: 22px; display: grid; gap: 18px; }
+.cf-auth-card.compact { width: min(420px, 100%); padding: 26px 24px 22px; gap: 16px; }
 .cf-auth-card h1 { margin: 0; font-size: 27px; }
 .cf-auth-card p { margin: 6px 0 0; color: #8F99A8; line-height: 1.5; }
+.cf-auth-card.compact .cf-form > .cf-btn { width: 100%; }
+.cf-auth-card.compact .cf-auth-footer {
+  width: 100%;
+  justify-content: space-between;
+  gap: 10px 14px;
+}
+.cf-auth-logo.compact { margin-top: clamp(60px, 8vh, 104px); }
 .cf-password-field { display: grid; grid-template-columns: 1fr 42px; gap: 8px; }
+.cf-auth-remember { display: flex !important; align-items: center; gap: 10px; color: #B9C1CF !important; font-size: 13px !important; }
+.cf-auth-remember input { width: 16px; height: 16px; accent-color: #43E6A3; }
 .cf-auth-error, .cf-auth-success { border-radius: 8px; padding: 10px 12px; font-size: 13px; }
 .cf-auth-error { color: #FF9AA4; background: rgba(255,107,122,.1); border: 1px solid rgba(255,107,122,.22); }
 .cf-auth-success { color: #83F0C0; background: rgba(67,230,163,.1); border: 1px solid rgba(67,230,163,.22); }

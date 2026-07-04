@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+import type { InvalidEvent } from "react";
 
 function maskPhone(value: string) {
   let digits = value.replace(/\D/g, "").slice(0, 13);
@@ -11,6 +13,10 @@ function maskPhone(value: string) {
 }
 
 export function PhoneField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  function handleInvalid(event: InvalidEvent<HTMLInputElement>) {
+    event.currentTarget.setCustomValidity("Celular obrigatório.");
+  }
+
   return (
     <label>Celular
       <input
@@ -21,6 +27,8 @@ export function PhoneField({ value, onChange }: { value: string; onChange: (valu
         maxLength={20}
         value={value}
         onChange={(event) => onChange(maskPhone(event.target.value))}
+        onInvalid={handleInvalid}
+        onInput={(event) => event.currentTarget.setCustomValidity("")}
         required
       />
     </label>

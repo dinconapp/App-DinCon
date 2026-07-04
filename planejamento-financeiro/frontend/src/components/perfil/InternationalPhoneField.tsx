@@ -1,5 +1,7 @@
 "use client";
 
+import type { InvalidEvent } from "react";
+
 function digitsToInternationalPhone(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 15);
   if (!digits) return "+";
@@ -18,6 +20,10 @@ export function normalizeInternationalPhone(value: string) {
 }
 
 export function InternationalPhoneField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  function handleInvalid(event: InvalidEvent<HTMLInputElement>) {
+    event.currentTarget.setCustomValidity("WhatsApp internacional obrigatório.");
+  }
+
   return (
     <label>WhatsApp internacional
       <input
@@ -28,6 +34,8 @@ export function InternationalPhoneField({ value, onChange }: { value: string; on
         maxLength={19}
         value={value}
         onChange={(event) => onChange(digitsToInternationalPhone(event.target.value))}
+        onInvalid={handleInvalid}
+        onInput={(event) => event.currentTarget.setCustomValidity("")}
         required
       />
     </label>

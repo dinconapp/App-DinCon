@@ -33,7 +33,7 @@ app = FastAPI(title="Planejamento Financeiro API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_cors_origins,
-    allow_origin_regex=None if settings.is_production else r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_origin_regex=None if settings.is_production else r"http://(localhost|127\.0\.0\.1|(?:\d{1,3}\.){3}\d{1,3}):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

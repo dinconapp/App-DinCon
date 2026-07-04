@@ -19,7 +19,7 @@ export function WhatsAppAuthorizedAccountsCard({
   canManage = true,
 }: {
   userId: string;
-  onDone: (message: string) => void;
+  onDone: (message: string, tone?: "success" | "error") => void;
   canManage?: boolean;
 }) {
   const { items, loading, create, update, remove } = useWhatsappAccounts(userId);
@@ -48,9 +48,10 @@ export function WhatsAppAuthorizedAccountsCard({
       setError("");
       setPhone("+55 ");
       setAlias("");
-      onDone("WhatsApp adicionado");
+      onDone("WhatsApp adicionado com sucesso.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nao foi possivel adicionar este WhatsApp.");
+      onDone("Não foi possível adicionar o WhatsApp. Tente novamente.", "error");
     }
   }
 
@@ -79,24 +80,30 @@ export function WhatsAppAuthorizedAccountsCard({
       });
       setError("");
       setEditing(null);
-      onDone("WhatsApp atualizado");
+      onDone("WhatsApp atualizado com sucesso.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nao foi possivel atualizar este WhatsApp.");
+      onDone("Não foi possível atualizar o WhatsApp. Tente novamente.", "error");
     }
   }
 
   async function toggleActive(item: WhatsAppAccount) {
     try {
       await update(item.id, { active: !item.active });
-      onDone(item.active ? "WhatsApp desativado" : "WhatsApp ativado");
+      onDone(item.active ? "WhatsApp desativado com sucesso." : "WhatsApp ativado com sucesso.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nao foi possivel alterar o status.");
+      onDone("Não foi possível alterar o status do WhatsApp.", "error");
     }
   }
 
   async function removeAccount(id: string) {
-    await remove(id);
-    onDone("Vinculo removido");
+    try {
+      await remove(id);
+      onDone("Vínculo removido com sucesso.");
+    } catch {
+      onDone("Não foi possível remover o vínculo. Tente novamente.", "error");
+    }
   }
 
   return (

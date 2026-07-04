@@ -42,4 +42,4 @@ def update_transaction(transaction_id: str, payload: TransactionUpdate, db: Sess
 def delete_transaction(transaction_id: str, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
     repos = repositories(db)
     assert_user_access(repos["transactions"].get(transaction_id).user_id, authenticated_user_id)
-    return TransactionUseCases(repos["transactions"], repos["categories"], repos["budgets"]).delete(transaction_id)
+    return TransactionUseCases(repos["transactions"], repos["categories"], repos["budgets"]).delete(transaction_id, authenticated_user_id)

@@ -7,7 +7,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { getBills, payBill, unpayBill, type Bill } from "@/services/billService";
 import { BillRow } from "./BillRow";
 
-export function BillsPage({ userId, monthKey, onDone }: { userId: string; monthKey: string; onDone: (message: string) => void }) {
+export function BillsPage({ userId, monthKey, onDone }: { userId: string; monthKey: string; onDone: (message: string, tone?: "success" | "error") => void }) {
   const [pending, setPending] = useState<Bill[]>([]);
   const [paid, setPaid] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,14 +29,18 @@ export function BillsPage({ userId, monthKey, onDone }: { userId: string; monthK
   useEffect(() => { void load(); }, [userId, monthKey]);
 
   async function toggle(item: Bill) {
-    if (item.paid) {
-      await unpayBill(userId, monthKey, item.budget_id);
-      onDone("Conta voltou para pendente.");
-    } else {
-      await payBill(userId, monthKey, item.budget_id);
-      onDone("Conta marcada como paga.");
+    try {
+      if (item.paid) {
+        await unpayBill(userId, monthKey, item.budget_id);
+        onDone("Conta voltou para pendente.");
+      } else {
+        await payBill(userId, monthKey, item.budget_id);
+        onDone("Conta marcada como paga.");
+      }
+      await load();
+    } catch {
+      onDone("Não foi possível atualizar a conta. Tente novamente.", "error");
     }
-    await load();
   }
 
   if (loading) return <div className="cf-card">Carregando contas...</div>;

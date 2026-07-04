@@ -1,11 +1,14 @@
-"use client";
+﻿"use client";
 
 import { Eye, EyeOff } from "lucide-react";
+import type { InvalidEvent } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 
 export function PasswordField({ label, value, onChange, autoComplete = "current-password" }: { label: string; value: string; onChange: (value: string) => void; autoComplete?: string }) {
   const [visible, setVisible] = useState(false);
+  const requiredMessage = `${label} obrigatório.`;
+
   return (
     <label>{label}
       <div className="cf-password-field">
@@ -16,6 +19,8 @@ export function PasswordField({ label, value, onChange, autoComplete = "current-
           onChange={(event) => onChange(event.target.value)}
           autoComplete={autoComplete}
           minLength={6}
+          onInvalid={(event: InvalidEvent<HTMLInputElement>) => event.currentTarget.setCustomValidity(requiredMessage)}
+          onInput={(event) => event.currentTarget.setCustomValidity("")}
           required
         />
         <Button type="button" square icon={visible ? <EyeOff size={16} /> : <Eye size={16} />} onClick={() => setVisible((value) => !value)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"} />

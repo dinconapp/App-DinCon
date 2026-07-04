@@ -13,7 +13,7 @@ import { TransactionFilters } from "./TransactionFilters";
 import { TransactionFormModal } from "./TransactionFormModal";
 import { TransactionRow } from "./TransactionRow";
 
-export function TransactionsPage({ userId, monthKey, actionToken, onDone }: { userId: string; monthKey: string; actionToken: number; onDone: (message: string) => void }) {
+export function TransactionsPage({ userId, monthKey, actionToken, onDone }: { userId: string; monthKey: string; actionToken: number; onDone: (message: string, tone?: "success" | "error") => void }) {
   const tx = useTransactions(userId, monthKey);
   const { items: categories } = useCategories();
   const [editing, setEditing] = useState<Transaction | null | undefined>(undefined);
@@ -24,8 +24,12 @@ export function TransactionsPage({ userId, monthKey, actionToken, onDone }: { us
 
   async function remove(item: Transaction) {
     if (!window.confirm(`Excluir "${item.title}"?`)) return;
-    await tx.remove(item.id);
-    onDone("Lançamento removido.");
+    try {
+      await tx.remove(item.id);
+      onDone("Lançamento removido com sucesso.");
+    } catch {
+      onDone("Não foi possível remover o lançamento. Tente novamente.", "error");
+    }
   }
   const filteredBalance = tx.totals.total_income - tx.totals.total_expense;
 

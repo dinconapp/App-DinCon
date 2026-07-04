@@ -33,4 +33,4 @@ def update_budget(budget_id: str, payload: BudgetUpdate, db: Session = Depends(g
 def delete_budget(budget_id: str, db: Session = Depends(get_db), authenticated_user_id: str = Depends(require_auth_user)):
     repos = repositories(db)
     assert_user_access(repos["budgets"].get(budget_id).user_id, authenticated_user_id)
-    return BudgetUseCases(repos["budgets"], repos["categories"]).delete(budget_id)
+    return BudgetUseCases(repos["budgets"], repos["categories"], repos["transactions"]).delete(budget_id, authenticated_user_id)

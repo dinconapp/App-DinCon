@@ -22,6 +22,10 @@ export default function SignUpPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  function requiredMessage(label: string) {
+    return `${label} obrigatório.`;
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (password !== confirmPassword) {
@@ -77,8 +81,8 @@ export default function SignUpPage() {
     <AuthShell title={step === "register" ? "Crie sua conta" : "Verifique seu celular"} subtitle={step === "register" ? "Configure seu acesso e comece a organizar seu fluxo de caixa." : "Enviamos um código por SMS para o celular informado."} footer={<><span>Já tem conta?</span><Link href="/login">Entrar</Link></>}>
       {step === "register" ? (
         <form className="cf-form" onSubmit={submit}>
-          <label>Nome<input className="cf-input" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required /></label>
-          <label>E-mail<input className="cf-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label>
+          <label>Nome<input className="cf-input" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" onInvalid={(event) => event.currentTarget.setCustomValidity(requiredMessage("Nome"))} onInput={(event) => event.currentTarget.setCustomValidity("")} required /></label>
+          <label>E-mail<input className="cf-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" onInvalid={(event) => event.currentTarget.setCustomValidity(requiredMessage("E-mail"))} onInput={(event) => event.currentTarget.setCustomValidity("")} required /></label>
           <PhoneField value={phone} onChange={setPhone} />
           <PasswordField label="Senha" value={password} onChange={setPassword} autoComplete="new-password" />
           <PasswordField label="Confirmar senha" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" />
@@ -89,8 +93,8 @@ export default function SignUpPage() {
       ) : (
         <form className="cf-form" onSubmit={submitVerification}>
           <p>Enviamos um codigo por SMS para seu celular.</p>
-          <label>E-mail<input className="cf-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
-          <label>Código de verificação<input className="cf-input" value={verificationCode} onChange={(event) => setVerificationCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" required /></label>
+          <label>E-mail<input className="cf-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} onInvalid={(event) => event.currentTarget.setCustomValidity(requiredMessage("E-mail"))} onInput={(event) => event.currentTarget.setCustomValidity("")} required /></label>
+          <label>Código de verificação<input className="cf-input" value={verificationCode} onChange={(event) => setVerificationCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" onInvalid={(event) => event.currentTarget.setCustomValidity(requiredMessage("Código de verificação"))} onInput={(event) => event.currentTarget.setCustomValidity("")} required /></label>
           {error && <div className="cf-auth-error">{error}</div>}
           {message && <div className="cf-auth-success">{message}</div>}
           <Button variant="primary" type="submit" disabled={submitting}>{submitting ? "Verificando..." : "Verificar SMS"}</Button>

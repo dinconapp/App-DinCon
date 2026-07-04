@@ -32,6 +32,8 @@ export function BudgetFormModal({
   onClose: () => void;
   onSave: (payload: BudgetPayload, id?: string) => Promise<void>;
 }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState<BudgetPayload>({
     user_id: userId,
     description: initial?.description ?? "",
@@ -50,13 +52,21 @@ export function BudgetFormModal({
   async function submit(event: FormEvent) {
     event.preventDefault();
     const categoryId = form.category_id || availableCategories[0]?.id;
-    await onSave({
-      ...form,
-      category_id: categoryId,
-      end_month: isRecurringFixedItem ? null : form.end_month,
-      due_day: form.has_due_date ? form.due_day : null
-    }, initial?.id);
-    onClose();
+    setSubmitting(true);
+    setError("");
+    try {
+      await onSave({
+        ...form,
+        category_id: categoryId,
+        end_month: isRecurringFixedItem ? null : form.end_month,
+        due_day: form.has_due_date ? form.due_day : null
+      }, initial?.id);
+      onClose();
+    } catch {
+      setError("Não foi possível salvar a previsão. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -82,7 +92,8 @@ export function BudgetFormModal({
             </select>
           </label>
         )}
-        <Button variant="primary" type="submit">{form.kind === "income" ? "Salvar receita prevista" : "Salvar conta fixa"}</Button>
+        {error && <div className="cf-auth-error">{error}</div>}
+        <Button variant="primary" type="submit" disabled={submitting}>{form.kind === "income" ? "Salvar receita prevista" : "Salvar conta fixa"}</Button>
       </form>
     </Modal>
   );

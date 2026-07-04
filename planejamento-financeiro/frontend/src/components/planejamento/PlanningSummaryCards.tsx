@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { AlertTriangle, CalendarClock, CheckCircle2, Clock3, Info, Plus, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -15,6 +15,7 @@ import { useTransactions } from "@/hooks/useTransactions";
 import { getBills, payBill, receiveIncome, unpayBill, unreceiveIncome, type Bill } from "@/services/billService";
 import type { Budget } from "@/types/budget";
 import type { Transaction } from "@/types/transaction";
+import { isLooseTransaction } from "@/utils/financial-classification";
 import { TransactionFormModal } from "@/components/transacoes/TransactionFormModal";
 import { BudgetFormModal } from "./BudgetFormModal";
 
@@ -24,7 +25,7 @@ type PaymentStatus = {
   detail: string;
 };
 
-export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId: string; monthKey: string; actionToken: number; onDone: (message: string) => void }) {
+export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId: string; monthKey: string; actionToken: number; onDone: (message: string, tone?: "success" | "error") => void }) {
   const { items, loading, save, remove, reload: reloadBudgets } = useBudgets(userId);
   const tx = useTransactions(userId, monthKey);
   const { items: categories } = useCategories();
@@ -61,9 +62,9 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
     income: items.filter((item) => item.kind === "income" && activeInMonth(item, monthKey))
   }), [items, monthKey]);
   const transactions = useMemo(() => tx.items.filter((item) => item.status !== "canceled"), [tx.items]);
-  const transactionExpenses = useMemo(() => transactions.filter((item) => item.kind === "expense"), [transactions]);
-  const transactionIncome = useMemo(() => transactions.filter((item) => item.kind === "income" && !item.budget_id), [transactions]);
-  const avulsoTransactions = useMemo(() => [...transactionIncome, ...transactionExpenses], [transactionIncome, transactionExpenses]);
+  const avulsoTransactions = useMemo(() => transactions.filter(isLooseTransaction), [transactions]);
+  const transactionExpenses = useMemo(() => avulsoTransactions.filter((item) => item.kind === "expense"), [avulsoTransactions]);
+  const transactionIncome = useMemo(() => avulsoTransactions.filter((item) => item.kind === "income"), [avulsoTransactions]);
   const paidBillIds = useMemo(() => new Set(bills.paid.map((item) => item.budget_id)), [bills.paid]);
   const receivedIncomeIds = useMemo(() => new Set(transactions.filter((item) => item.kind === "income" && item.status === "paid" && item.budget_id).map((item) => item.budget_id as string)), [transactions]);
   const pendingBillIds = useMemo(() => new Set(bills.pending.map((item) => item.budget_id)), [bills.pending]);
@@ -81,50 +82,66 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
 
   async function deleteItem(item: Budget) {
     if (!window.confirm(`Remover "${item.description}"? Lançamentos vinculados também serão removidos.`)) return;
-    await remove(item.id);
-    await Promise.all([tx.reload(), loadBills()]);
-    onDone("Item removido");
+    try {
+      await remove(item.id);
+      await Promise.all([tx.reload(), loadBills()]);
+      onDone("Item removido");
+    } catch {
+      onDone("Não foi possível remover o item. Tente novamente.", "error");
+    }
   }
 
   async function toggleBill(item: Budget) {
-    if (paidBillIds.has(item.id)) {
-      await unpayBill(userId, monthKey, item.id);
-      onDone("Conta voltou para pendente.");
-    } else {
-      await payBill(userId, monthKey, item.id);
-      onDone("Conta marcada como paga.");
+    try {
+      if (paidBillIds.has(item.id)) {
+        await unpayBill(userId, monthKey, item.id);
+        onDone("Conta voltou para pendente.");
+      } else {
+        await payBill(userId, monthKey, item.id);
+        onDone("Conta marcada como paga.");
+      }
+      await Promise.all([tx.reload(), loadBills(), reloadBudgets()]);
+    } catch {
+      onDone("Não foi possível atualizar a conta. Tente novamente.", "error");
     }
-    await Promise.all([tx.reload(), loadBills(), reloadBudgets()]);
   }
 
   async function toggleIncome(item: Budget) {
-    if (receivedIncomeIds.has(item.id)) {
-      await unreceiveIncome(userId, monthKey, item.id);
-      onDone("Receita voltou para prevista.");
-    } else {
-      await receiveIncome(userId, monthKey, item.id);
-      onDone("Receita marcada como recebida.");
+    try {
+      if (receivedIncomeIds.has(item.id)) {
+        await unreceiveIncome(userId, monthKey, item.id);
+        onDone("Receita voltou para prevista.");
+      } else {
+        await receiveIncome(userId, monthKey, item.id);
+        onDone("Receita marcada como recebida.");
+      }
+      await Promise.all([tx.reload(), loadBills(), reloadBudgets()]);
+    } catch {
+      onDone("Não foi possível atualizar a receita. Tente novamente.", "error");
     }
-    await Promise.all([tx.reload(), loadBills(), reloadBudgets()]);
   }
 
   async function handleSave(payload: Parameters<typeof save>[0], id?: string) {
-    await save(payload, id);
-    await Promise.all([tx.reload(), loadBills()]);
-    onDone(payload.kind === "income" ? "Receita prevista salva com sucesso." : "Conta fixa salva com sucesso.");
+    try {
+      await save(payload, id);
+      await Promise.all([tx.reload(), loadBills()]);
+      onDone(payload.kind === "income" ? "Receita prevista salva com sucesso." : "Conta fixa salva com sucesso.");
+    } catch {
+      onDone("Não foi possível salvar o item. Tente novamente.", "error");
+    }
   }
 
   if (loading || tx.loading || billsLoading) return <div className="cf-card">Carregando fluxo de caixa...</div>;
   return (
     <div className="cf-grid">
       <SectionHeader
-        title="Resumo do mês"
-        description="Previsto é o que foi cadastrado para o mês. Realizado é o que já foi lançado, pago ou recebido."
+        title="Resumo do mÃªs"
+        description="Previsto Ã© o que foi cadastrado para o mÃªs. Realizado Ã© o que jÃ¡ foi lanÃ§ado, pago ou recebido."
       />
       <div className="cf-grid cf-kpis">
         <CashFlowKpi title="Receitas previstas" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${groups.income.length} registros`} />
-        <CashFlowKpi title="Receitas recebidas" value={paidIncome} tone="income" icon={<CheckCircle2 size={19} />} detail="Receitas já realizadas" />
-        <CashFlowKpi title="Contas pendentes" value={pendingExpense} tone="expense" icon={<Clock3 size={19} />} detail="Saídas em aberto" />
+        <CashFlowKpi title="Receitas recebidas" value={paidIncome} tone="income" icon={<CheckCircle2 size={19} />} detail="Receitas jÃ¡ realizadas" />
+        <CashFlowKpi title="Contas pendentes" value={pendingExpense} tone="expense" icon={<Clock3 size={19} />} detail="SaÃ­das em aberto" />
         <CashFlowKpi title="Saldo previsto" value={projectedBalance} tone={projectedBalance >= 0 ? "income" : "expense"} icon={<Wallet size={19} />} detail={`Realizado: ${formatCurrency(realizedBalance)}`} />
       </div>
 
@@ -138,8 +155,8 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
       </Card>
 
       <div className="cf-grid cf-two">
-        <CashFlowSection title="Contas fixas" description="Compromissos recorrentes com vencimento no mês." count={groups.fixed.length}>
-          {!groups.fixed.length && <EmptyState message="Nenhuma conta fixa cadastrada para este mês." />}
+        <CashFlowSection title="Contas fixas" description="Compromissos recorrentes com vencimento no mÃªs." count={groups.fixed.length}>
+          {!groups.fixed.length && <EmptyState message="Nenhuma conta fixa cadastrada para este mÃªs." />}
           {groups.fixed.map((item) => (
             <CashFlowBudgetRow
               key={item.id}
@@ -153,8 +170,8 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
           ))}
         </CashFlowSection>
 
-        <CashFlowSection title="Receitas previstas" description="Valores que você espera receber neste mês." count={groups.income.length}>
-          {!groups.income.length && <EmptyState message="Nenhuma receita prevista para este mês. Cadastre uma receita prevista para acompanhar seus recebimentos." />}
+        <CashFlowSection title="Receitas previstas" description="Valores que vocÃª espera receber neste mÃªs." count={groups.income.length}>
+          {!groups.income.length && <EmptyState message="Nenhuma receita prevista para este mÃªs. Cadastre uma receita prevista para acompanhar seus recebimentos." />}
           {groups.income.map((item) => (
             <CashFlowBudgetRow
               key={item.id}
@@ -170,8 +187,8 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
       </div>
 
       <div className="cf-grid">
-        <CashFlowSection title="Lançamentos avulsos" description="Entradas e gastos realizados fora das previsões fixas." count={avulsoTransactions.length}>
-          {!avulsoTransactions.length && <EmptyState message="Nenhum lançamento avulso encontrado neste mês." />}
+        <CashFlowSection title="LanÃ§amentos avulsos" description="Entradas e gastos realizados fora das previsÃµes fixas." count={avulsoTransactions.length}>
+          {!avulsoTransactions.length && <EmptyState message="Nenhum lanÃ§amento avulso encontrado neste mÃªs." />}
           {avulsoTransactions.map((item) => <CashFlowTransactionRow key={item.id} item={item} />)}
         </CashFlowSection>
       </div>
@@ -180,15 +197,15 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
           <div className="cf-fab-menu">
             <button type="button" onClick={() => { setNewBudgetKind("income"); setNewBudgetHasDueDate(false); setNewBudgetTitle("Nova receita prevista"); setEditing(null); setFabOpen(false); }}>
               <span>Nova receita prevista</span>
-              <InfoTooltip text="Use para salário, aluguel recebido ou outra receita esperada no mês." />
+              <InfoTooltip text="Use para salÃ¡rio, aluguel recebido ou outra receita esperada no mÃªs." />
             </button>
             <button type="button" onClick={() => { setNewBudgetKind("expense"); setNewBudgetHasDueDate(true); setNewBudgetTitle("Nova conta fixa"); setEditing(null); setFabOpen(false); }}>
               <span>Nova conta fixa</span>
-              <InfoTooltip text="Use para compromissos recorrentes, como aluguel, energia, internet e cartão." />
+              <InfoTooltip text="Use para compromissos recorrentes, como aluguel, energia, internet e cartÃ£o." />
             </button>
             <button type="button" onClick={() => { setTransactionEditing(null); setFabOpen(false); }}>
-              <span>Novo lançamento avulso</span>
-              <InfoTooltip text="Use para entradas e gastos realizados fora das previsões fixas." />
+              <span>Novo lanÃ§amento avulso</span>
+              <InfoTooltip text="Use para entradas e gastos realizados fora das previsÃµes fixas." />
             </button>
           </div>
         )}
@@ -358,10 +375,10 @@ function CashFlowTransactionRow({ item }: { item: Transaction }) {
   const status: PaymentStatus = item.status === "paid"
     ? item.kind === "income"
       ? { value: "received", label: "Recebido", detail: "Receita realizada" }
-      : { value: "paid", label: "Pago", detail: "Lançamento realizado" }
+      : { value: "paid", label: "Pago", detail: "LanÃ§amento realizado" }
     : isOverdue
-      ? { value: "overdue", label: "Atrasado", detail: "Lançamento pendente com data vencida" }
-      : { value: "pending", label: "Pendente", detail: "Lançamento em aberto" };
+      ? { value: "overdue", label: "Atrasado", detail: "LanÃ§amento pendente com data vencida" }
+      : { value: "pending", label: "Pendente", detail: "LanÃ§amento em aberto" };
 
   return (
     <div className={`cf-row cf-row-${item.kind} cf-cashflow-row`}>
@@ -374,7 +391,7 @@ function CashFlowTransactionRow({ item }: { item: Transaction }) {
         </div>
         <div style={{ minWidth: 0 }}>
           <div className="cf-row-title">{item.title}</div>
-          <div className="cf-row-sub">{formatDate(item.transaction_date)} - {item.category_name ?? "Sem categoria"} - lançamento avulso</div>
+          <div className="cf-row-sub">{formatDate(item.transaction_date)} - {item.category_name ?? "Sem categoria"} - lanÃ§amento avulso</div>
           <div className="cf-row-sub">{status.detail}</div>
         </div>
       </div>
@@ -385,3 +402,6 @@ function CashFlowTransactionRow({ item }: { item: Transaction }) {
     </div>
   );
 }
+
+
+

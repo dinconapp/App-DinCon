@@ -1,4 +1,4 @@
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, joinedload
 from app.core.exceptions import NotFoundError
 from app.domain.shared import date_range_for_month
@@ -14,6 +14,17 @@ class SqlAlchemyTransactionRepository:
             select(TransactionModel)
             .options(joinedload(TransactionModel.category), joinedload(TransactionModel.budget))
             .where(TransactionModel.id == transaction_id)
+        )
+        tx = self.db.scalar(stmt)
+        if not tx:
+            raise NotFoundError("Transacao nao encontrada.")
+        return tx
+
+    def get_by_id_and_user_id(self, transaction_id: str, user_id: str) -> TransactionModel:
+        stmt = (
+            select(TransactionModel)
+            .options(joinedload(TransactionModel.category), joinedload(TransactionModel.budget))
+            .where(TransactionModel.id == transaction_id, TransactionModel.user_id == user_id)
         )
         tx = self.db.scalar(stmt)
         if not tx:
@@ -72,12 +83,40 @@ class SqlAlchemyTransactionRepository:
             self.db.rollback()
             raise
 
-    def delete(self, transaction_id: str) -> None:
+    def delete(self, transaction_id: str, commit: bool = True) -> None:
         try:
             tx = self.get(transaction_id)
             self._unlink_whatsapp_drafts(transaction_id)
             self.db.delete(tx)
-            self.db.commit()
+            if commit:
+                self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def count_by_budget_id(self, budget_id: str, user_id: str) -> int:
+        stmt = select(func.count(TransactionModel.id)).where(
+            TransactionModel.user_id == user_id,
+            TransactionModel.budget_id == budget_id,
+        )
+        return int(self.db.scalar(stmt) or 0)
+
+    def delete_by_budget_id(self, budget_id: str, user_id: str) -> int:
+        try:
+            transaction_ids = list(self.db.scalars(
+                select(TransactionModel.id).where(
+                    TransactionModel.user_id == user_id,
+                    TransactionModel.budget_id == budget_id,
+                )
+            ))
+            for transaction_id in transaction_ids:
+                self._unlink_whatsapp_drafts(transaction_id)
+            if transaction_ids:
+                self.db.query(TransactionModel).filter(
+                    TransactionModel.user_id == user_id,
+                    TransactionModel.budget_id == budget_id,
+                ).delete(synchronize_session=False)
+            return len(transaction_ids)
         except Exception:
             self.db.rollback()
             raise

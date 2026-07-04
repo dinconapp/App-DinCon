@@ -9,6 +9,8 @@ import type { Category } from "@/types/category";
 import type { Transaction, TransactionPayload } from "@/types/transaction";
 
 export function TransactionFormModal({ userId, monthKey, categories, initial, onClose, onSave }: { userId: string; monthKey: string; categories: Category[]; initial?: Transaction | null; onClose: () => void; onSave: (payload: TransactionPayload, id?: string) => Promise<void> }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState<TransactionPayload>({
     user_id: userId,
     budget_id: initial?.budget_id ?? null,
@@ -24,8 +26,16 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
   async function submit(event: FormEvent) {
     event.preventDefault();
     const categoryId = form.kind === "income" ? form.category_id || null : form.category_id || availableCategories[0]?.id;
-    await onSave({ ...form, category_id: categoryId }, initial?.id);
-    onClose();
+    setSubmitting(true);
+    setError("");
+    try {
+      await onSave({ ...form, category_id: categoryId }, initial?.id);
+      onClose();
+    } catch {
+      setError("Não foi possível salvar o lançamento. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -41,7 +51,8 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
           <label>Valor<CurrencyInput value={form.amount} onChange={(amount) => setForm({ ...form, amount })} required /></label>
           <label>Data<DateInput value={form.transaction_date} onChange={(transaction_date) => setForm({ ...form, transaction_date })} required /></label>
         </div>
-        <Button variant="primary" type="submit">Salvar</Button>
+        {error && <div className="cf-auth-error">{error}</div>}
+        <Button variant="primary" type="submit" disabled={submitting}>Salvar</Button>
       </form>
     </Modal>
   );

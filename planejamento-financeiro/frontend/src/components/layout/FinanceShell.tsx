@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { MobileNav } from "./MobileNav";
@@ -16,7 +16,13 @@ import { BillsPage } from "@/components/contas/BillsList";
 import { SavingsDashboard } from "@/components/cofrinho/SavingsDashboard";
 import { ProfilePageClean } from "@/components/perfil/ProfilePageClean";
 
-export function FinanceShell({ active }: { active: "dashboard" | "planejamento" | "transacoes" | "contas" | "cofrinho" | "perfil" }) {
+export function FinanceShell({
+  active,
+  children,
+}: {
+  active: "dashboard" | "planejamento" | "transacoes" | "contas" | "cofrinho" | "perfil" | "assinatura" | "planos";
+  children?: ReactNode;
+}) {
   const [userInitial, setUserInitial] = useState("U");
   const [userId, setUserId] = useState<string | null>(null);
   const { monthKey, previousMonth, nextMonth } = useMonth();
@@ -36,12 +42,16 @@ export function FinanceShell({ active }: { active: "dashboard" | "planejamento" 
             {userId ? (
               <>
                 <Topbar active={active} userId={userId} monthKey={monthKey} onPrevious={previousMonth} onNext={nextMonth} onAction={() => setActionToken((value) => value + 1)} />
-                {active === "dashboard" && <DashboardPage userId={userId} monthKey={monthKey} />}
-                {active === "planejamento" && <PlanningPage userId={userId} monthKey={monthKey} actionToken={actionToken} onDone={showToast} />}
-                {active === "transacoes" && <TransactionsPage userId={userId} monthKey={monthKey} actionToken={actionToken} onDone={showToast} />}
-                {active === "contas" && <BillsPage userId={userId} monthKey={monthKey} onDone={showToast} />}
-                {active === "cofrinho" && <SavingsDashboard userId={userId} actionToken={actionToken} onDone={showToast} />}
-                {active === "perfil" && <ProfilePageClean userId={userId} onInitial={setUserInitial} onDone={showToast} />}
+                {children ?? (
+                  <>
+                    {active === "dashboard" && <DashboardPage userId={userId} monthKey={monthKey} />}
+                    {active === "planejamento" && <PlanningPage userId={userId} monthKey={monthKey} actionToken={actionToken} onDone={showToast} />}
+                    {active === "transacoes" && <TransactionsPage userId={userId} monthKey={monthKey} actionToken={actionToken} onDone={showToast} />}
+                    {active === "contas" && <BillsPage userId={userId} monthKey={monthKey} onDone={showToast} />}
+                    {active === "cofrinho" && <SavingsDashboard userId={userId} actionToken={actionToken} onDone={showToast} />}
+                    {active === "perfil" && <ProfilePageClean userId={userId} onInitial={setUserInitial} onDone={showToast} />}
+                  </>
+                )}
               </>
             ) : (
               <div className="cf-card">Carregando usuario...</div>

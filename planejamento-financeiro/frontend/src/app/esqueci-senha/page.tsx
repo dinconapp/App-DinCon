@@ -19,6 +19,10 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  function requiredMessage(label: string) {
+    return `${label} obrigatório.`;
+  }
+
   async function requestCode(event: FormEvent) {
     event.preventDefault();
     setSubmitting(true);
@@ -59,7 +63,7 @@ export default function ForgotPasswordPage() {
     <AuthShell title="Esqueci minha senha" subtitle="Informe seu e-mail para receber o código no celular cadastrado." footer={<Link href="/login">Voltar para login</Link>}>
       {step === "email" ? (
         <form className="cf-form" onSubmit={requestCode}>
-          <label>E-mail<input className="cf-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label>
+          <label>E-mail<input className="cf-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" onInvalid={(event) => event.currentTarget.setCustomValidity(requiredMessage("E-mail"))} onInput={(event) => event.currentTarget.setCustomValidity("")} required /></label>
           <p>O código será enviado por SMS para o celular vinculado a este cadastro.</p>
           {error && <div className="cf-auth-error">{error}</div>}
           {message && <div className="cf-auth-success">{message}</div>}
@@ -67,9 +71,9 @@ export default function ForgotPasswordPage() {
         </form>
       ) : (
         <form className="cf-form" onSubmit={submit}>
-          <label>E-mail<input className="cf-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label>
+          <label>E-mail<input className="cf-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" onInvalid={(event) => event.currentTarget.setCustomValidity(requiredMessage("E-mail"))} onInput={(event) => event.currentTarget.setCustomValidity("")} required /></label>
           <p>Informe o código recebido por SMS.</p>
-          <label>Código de verificação<input className="cf-input" value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" required /></label>
+          <label>Código de verificação<input className="cf-input" value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" onInvalid={(event) => event.currentTarget.setCustomValidity(requiredMessage("Código de verificação"))} onInput={(event) => event.currentTarget.setCustomValidity("")} required /></label>
           <PasswordField label="Nova senha" value={password} onChange={setPassword} autoComplete="new-password" />
           <PasswordField label="Confirmar nova senha" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" />
           {error && <div className="cf-auth-error">{error}</div>}
