@@ -145,8 +145,8 @@ export function ProfilePageClean({ userId, onInitial, onDone }: { userId: string
               <label>Casa ou Apartamento
                 <select className="cf-input cf-select" value={form.residence_type} onChange={(e) => setForm({ ...form, residence_type: e.target.value })}>
                   <option value="">Selecione</option>
-                  <option className="bg-slate-900 text-slate-100" value="house">Casa</option>
-                  <option className="bg-slate-900 text-slate-100" value="apartment">Apartamento</option>
+                  <option value="house">Casa</option>
+                  <option value="apartment">Apartamento</option>
                 </select>
               </label>
             </div>

@@ -135,28 +135,28 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   return (
     <div className="cf-grid">
       <SectionHeader
-        title="Resumo do mÃªs"
-        description="Previsto Ã© o que foi cadastrado para o mÃªs. Realizado Ã© o que jÃ¡ foi lanÃ§ado, pago ou recebido."
+        title="Resumo do mês"
+        description="Previsto é o que foi cadastrado para o mês. Realizado é o que já foi lançado, pago ou recebido."
       />
       <div className="cf-grid cf-kpis">
         <CashFlowKpi title="Receitas previstas" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${groups.income.length} registros`} />
-        <CashFlowKpi title="Receitas recebidas" value={paidIncome} tone="income" icon={<CheckCircle2 size={19} />} detail="Receitas jÃ¡ realizadas" />
-        <CashFlowKpi title="Contas pendentes" value={pendingExpense} tone="expense" icon={<Clock3 size={19} />} detail="SaÃ­das em aberto" />
+        <CashFlowKpi title="Receitas recebidas" value={paidIncome} tone="income" icon={<CheckCircle2 size={19} />} detail="Receitas já realizadas" />
+        <CashFlowKpi title="Contas pendentes" value={pendingExpense} tone="expense" icon={<Clock3 size={19} />} detail="Saídas em aberto" />
         <CashFlowKpi title="Saldo previsto" value={projectedBalance} tone={projectedBalance >= 0 ? "income" : "expense"} icon={<Wallet size={19} />} detail={`Realizado: ${formatCurrency(realizedBalance)}`} />
       </div>
 
       <Card title="Dashboard do fluxo" meta={<StatusLegend />}>
         <div className="cf-cashflow-dashboard">
-          <StatusMetric label="Pago" value={paidExpense} helper="Saidas realizadas no mes" tone="paid" />
-          <StatusMetric label="Pendente" value={pendingExpense} helper="Saidas ainda em aberto" tone="pending" />
+          <StatusMetric label="Pago" value={paidExpense} helper="Saídas realizadas no mês" tone="paid" />
+          <StatusMetric label="Pendente" value={pendingExpense} helper="Saídas ainda em aberto" tone="pending" />
           <StatusMetric label="Atrasado" value={overdueExpense} helper="Vencimentos em atraso" tone="overdue" />
           <StatusMetric label="Recebido" value={paidIncome} helper="Receitas realizadas" tone="income" />
         </div>
       </Card>
 
       <div className="cf-grid cf-two">
-        <CashFlowSection title="Contas fixas" description="Compromissos recorrentes com vencimento no mÃªs." count={groups.fixed.length}>
-          {!groups.fixed.length && <EmptyState message="Nenhuma conta fixa cadastrada para este mÃªs." />}
+        <CashFlowSection title="Contas fixas" description="Compromissos recorrentes com vencimento no mês." count={groups.fixed.length}>
+          {!groups.fixed.length && <EmptyState message="Nenhuma conta fixa cadastrada para este mês." />}
           {groups.fixed.map((item) => (
             <CashFlowBudgetRow
               key={item.id}
@@ -170,8 +170,8 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
           ))}
         </CashFlowSection>
 
-        <CashFlowSection title="Receitas previstas" description="Valores que vocÃª espera receber neste mÃªs." count={groups.income.length}>
-          {!groups.income.length && <EmptyState message="Nenhuma receita prevista para este mÃªs. Cadastre uma receita prevista para acompanhar seus recebimentos." />}
+        <CashFlowSection title="Receitas previstas" description="Valores que você espera receber neste mês." count={groups.income.length}>
+          {!groups.income.length && <EmptyState message="Nenhuma receita prevista para este mês. Cadastre uma receita prevista para acompanhar seus recebimentos." />}
           {groups.income.map((item) => (
             <CashFlowBudgetRow
               key={item.id}
@@ -187,8 +187,8 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
       </div>
 
       <div className="cf-grid">
-        <CashFlowSection title="LanÃ§amentos avulsos" description="Entradas e gastos realizados fora das previsÃµes fixas." count={avulsoTransactions.length}>
-          {!avulsoTransactions.length && <EmptyState message="Nenhum lanÃ§amento avulso encontrado neste mÃªs." />}
+        <CashFlowSection title="Lançamentos avulsos" description="Entradas e gastos realizados fora das previsões fixas." count={avulsoTransactions.length}>
+          {!avulsoTransactions.length && <EmptyState message="Nenhum lançamento avulso encontrado neste mês." />}
           {avulsoTransactions.map((item) => <CashFlowTransactionRow key={item.id} item={item} />)}
         </CashFlowSection>
       </div>
@@ -197,15 +197,15 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
           <div className="cf-fab-menu">
             <button type="button" onClick={() => { setNewBudgetKind("income"); setNewBudgetHasDueDate(false); setNewBudgetTitle("Nova receita prevista"); setEditing(null); setFabOpen(false); }}>
               <span>Nova receita prevista</span>
-              <InfoTooltip text="Use para salÃ¡rio, aluguel recebido ou outra receita esperada no mÃªs." />
+              <InfoTooltip text="Use para salário, aluguel recebido ou outra receita esperada no mês." />
             </button>
             <button type="button" onClick={() => { setNewBudgetKind("expense"); setNewBudgetHasDueDate(true); setNewBudgetTitle("Nova conta fixa"); setEditing(null); setFabOpen(false); }}>
               <span>Nova conta fixa</span>
-              <InfoTooltip text="Use para compromissos recorrentes, como aluguel, energia, internet e cartÃ£o." />
+              <InfoTooltip text="Use para compromissos recorrentes, como aluguel, energia, internet e cartão." />
             </button>
             <button type="button" onClick={() => { setTransactionEditing(null); setFabOpen(false); }}>
-              <span>Novo lanÃ§amento avulso</span>
-              <InfoTooltip text="Use para entradas e gastos realizados fora das previsÃµes fixas." />
+              <span>Novo lançamento avulso</span>
+              <InfoTooltip text="Use para entradas e gastos realizados fora das previsões fixas." />
             </button>
           </div>
         )}
@@ -352,7 +352,7 @@ function CashFlowBudgetRow({
         <div style={{ minWidth: 0 }}>
           <div className="cf-row-title">{item.description}</div>
           <div className="cf-row-sub">
-            {item.category_name ?? "Sem categoria"} - {item.budget_type === "fixed" ? "Fixo" : "Variavel"}
+            {item.category_name ?? "Sem categoria"} - {item.budget_type === "fixed" ? "Fixo" : "Variável"}
             {dueDate ? ` - venc. ${formatDateFromDate(dueDate)}` : ""}
           </div>
           <div className="cf-row-sub">{status.detail}</div>
@@ -375,10 +375,10 @@ function CashFlowTransactionRow({ item }: { item: Transaction }) {
   const status: PaymentStatus = item.status === "paid"
     ? item.kind === "income"
       ? { value: "received", label: "Recebido", detail: "Receita realizada" }
-      : { value: "paid", label: "Pago", detail: "LanÃ§amento realizado" }
+      : { value: "paid", label: "Pago", detail: "Lançamento realizado" }
     : isOverdue
-      ? { value: "overdue", label: "Atrasado", detail: "LanÃ§amento pendente com data vencida" }
-      : { value: "pending", label: "Pendente", detail: "LanÃ§amento em aberto" };
+      ? { value: "overdue", label: "Atrasado", detail: "Lançamento pendente com data vencida" }
+      : { value: "pending", label: "Pendente", detail: "Lançamento em aberto" };
 
   return (
     <div className={`cf-row cf-row-${item.kind} cf-cashflow-row`}>
@@ -391,7 +391,7 @@ function CashFlowTransactionRow({ item }: { item: Transaction }) {
         </div>
         <div style={{ minWidth: 0 }}>
           <div className="cf-row-title">{item.title}</div>
-          <div className="cf-row-sub">{formatDate(item.transaction_date)} - {item.category_name ?? "Sem categoria"} - lanÃ§amento avulso</div>
+          <div className="cf-row-sub">{formatDate(item.transaction_date)} - {item.category_name ?? "Sem categoria"} - lançamento avulso</div>
           <div className="cf-row-sub">{status.detail}</div>
         </div>
       </div>

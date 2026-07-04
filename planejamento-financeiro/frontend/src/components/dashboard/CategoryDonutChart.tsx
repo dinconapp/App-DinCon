@@ -15,9 +15,9 @@ function DarkChartTooltip({ active, payload }: { active?: boolean; payload?: Arr
   const value = Number(item.value ?? 0);
 
   return (
-    <div className="rounded-xl border border-slate-700/80 bg-slate-950/95 px-3 py-2 shadow-xl backdrop-blur">
-      <p className="text-sm font-semibold text-slate-100">{label}</p>
-      <p className="text-xs text-slate-300">{formatCurrency(value)}</p>
+    <div className="cf-chart-tooltip">
+      <p>{label}</p>
+      <p>{formatCurrency(value)}</p>
     </div>
   );
 }

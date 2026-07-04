@@ -1,5 +1,7 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { ReactNode } from "react";
+import { ThemeToggleButton } from "@/components/ui/ThemeToggleButton";
+import { useThemeMode } from "@/hooks/useThemeMode";
 
 type AuthShellProps = {
   title: string;
@@ -12,10 +14,19 @@ type AuthShellProps = {
 };
 
 export function AuthShell({ title, subtitle, children, footer, compact = false, logoClassName = "", cardClassName = "" }: AuthShellProps) {
+  const { theme } = useThemeMode();
+
   return (
     <main className={`cf-auth-page${compact ? " compact" : ""}`}>
+      <div className="cf-auth-controls">
+        <ThemeToggleButton />
+      </div>
       <Link href="/" className={`cf-auth-logo${compact ? " compact" : ""} ${logoClassName}`.trim()}>
-        <img src="/logo/dincon_logo_dark_mode.png" alt="DinCon" />
+        <img
+          src={theme === "dark" ? "/logo/dincon_logo_dark_mode.png" : "/logo/dincon_logo_light_transparente_final.png"}
+          alt="DinCon"
+          className={theme === "dark" ? "cf-auth-logo-img-dark" : "cf-auth-logo-img-light"}
+        />
       </Link>
       <section className={`cf-auth-card${compact ? " compact" : ""} ${cardClassName}`.trim()}>
         <div>

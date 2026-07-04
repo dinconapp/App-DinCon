@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, CreditCard, KeyRound, LogOut, Plus, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ThemeToggleButton } from "@/components/ui/ThemeToggleButton";
 import { MonthNavigator } from "@/components/ui/MonthNavigator";
 import { signOut } from "@/services/authService";
 import { getUser } from "@/services/userService";
@@ -66,6 +67,7 @@ export function Topbar({
         <p>{data.subtitle}</p>
       </div>
       <div className="cf-actions">
+        <ThemeToggleButton />
         {active !== "perfil" && active !== "cofrinho" && <MonthNavigator monthKey={monthKey} onPrevious={onPrevious} onNext={onNext} />}
         {data.action && onAction && <Button variant="primary" icon={<Plus size={17} />} onClick={onAction}>{data.action}</Button>}
         <div className="cf-account-menu" ref={menuRef}>

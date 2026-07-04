@@ -3,7 +3,102 @@
 @tailwind utilities;
 
 * { box-sizing: border-box; }
-html, body { min-height: 100%; background: #0A0D12; color: #F3F6FA; }
+@layer base {
+  :root {
+    --cf-bg: #F4F7FB;
+    --cf-bg-soft: #EEF3F8;
+    --cf-bg-elevated: rgba(248, 250, 252, 0.96);
+    --cf-surface: #FFFFFF;
+    --cf-surface-strong: #FFFFFF;
+    --cf-surface-alt: #F1F5F9;
+    --cf-surface-3: #E2E8F0;
+    --cf-text: #1B2A3A;
+    --cf-text-strong: #0F172A;
+    --cf-text-soft: #4C627A;
+    --cf-text-muted: #6B7E95;
+    --cf-muted: #4C627A;
+    --cf-muted-strong: #334A62;
+    --cf-icon: #60748A;
+    --cf-icon-strong: #334155;
+    --cf-border: #D6E0EA;
+    --cf-border-strong: #C4D1DD;
+    --cf-input-bg: #FFFFFF;
+    --cf-input-border: #CBD5E1;
+    --cf-input-text: #0F172A;
+    --cf-input-placeholder: #94A3B8;
+    --cf-chip-bg: rgba(15, 118, 110, 0.08);
+    --cf-chip-border: rgba(15, 118, 110, 0.18);
+    --cf-panel: rgba(255, 255, 255, 0.94);
+    --cf-panel-strong: rgba(255, 255, 255, 0.98);
+    --cf-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    --cf-overlay: rgba(15, 23, 42, 0.42);
+    --cf-tooltip-bg: #FFFFFF;
+    --cf-tooltip-border: #D6E0EA;
+    --cf-tooltip-text: #0F172A;
+    --cf-toast-bg: #FFFFFF;
+    --cf-toast-border: #D6E0EA;
+    --cf-toast-text: #0F172A;
+    --cf-success: #16A34A;
+    --cf-success-soft: #DCFCE7;
+    --cf-success-text: #166534;
+    --cf-danger: #DC2626;
+    --cf-danger-soft: #FEE2E2;
+    --cf-danger-text: #991B1B;
+    --cf-warning: #D97706;
+    --cf-warning-soft: #FEF3C7;
+    --cf-warning-text: #92400E;
+    --cf-accent: #22C55E;
+    --cf-accent-2: #8B5CF6;
+    --cf-date-bg: #F4F7FB;
+    --cf-date-border: #D6E0EA;
+    --cf-date-text: #334155;
+    --cf-date-button-bg: #FFFFFF;
+    --cf-date-button-text: #1E293B;
+    --cf-menu-hover: #EEF4F8;
+    --cf-menu-active: #E8F8F0;
+    --cf-menu-active-text: #14532D;
+  }
+
+  :root[data-theme="dark"] {
+      --cf-bg: #0A0D12;
+      --cf-bg-elevated: rgba(10, 13, 18, 0.72);
+      --cf-surface: #10151D;
+      --cf-surface-strong: #151B25;
+      --cf-surface-alt: #1A2230;
+      --cf-text: #F3F6FA;
+      --cf-text-strong: #FFFFFF;
+      --cf-muted: #B9C1CF;
+      --cf-muted-strong: #8F99A8;
+      --cf-border: rgba(255, 255, 255, 0.09);
+      --cf-border-strong: rgba(255, 255, 255, 0.12);
+      --cf-input-bg: rgba(255, 255, 255, 0.055);
+      --cf-input-border: rgba(255, 255, 255, 0.1);
+      --cf-chip-bg: rgba(255, 255, 255, 0.06);
+      --cf-chip-border: rgba(255, 255, 255, 0.08);
+      --cf-panel: rgba(21, 27, 37, 0.94);
+      --cf-panel-strong: rgba(16, 21, 29, 0.94);
+      --cf-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+      --cf-overlay: rgba(0, 0, 0, 0.64);
+      --cf-tooltip-bg: #151B25;
+      --cf-tooltip-border: rgba(255, 255, 255, 0.1);
+      --cf-tooltip-text: #DCE3EE;
+      --cf-toast-bg: #151B25;
+      --cf-toast-border: rgba(255, 255, 255, 0.12);
+      --cf-toast-text: #F3F6FA;
+  }
+
+  html, body {
+    min-height: 100%;
+    background: var(--cf-bg);
+    color: var(--cf-text);
+    color-scheme: light;
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
+  }
+}
+
 body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 a { color: inherit; text-decoration: none; }
 button, input, select { font: inherit; }

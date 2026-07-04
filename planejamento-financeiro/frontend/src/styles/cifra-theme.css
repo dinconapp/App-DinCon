@@ -1053,3 +1053,395 @@
     padding-top: 48px;
   }
 }
+
+.cf-chart-tooltip {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--cf-tooltip-border);
+  background: var(--cf-tooltip-bg);
+  color: var(--cf-tooltip-text);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, .14);
+  backdrop-filter: blur(12px);
+}
+
+.cf-chart-tooltip p {
+  margin: 0;
+}
+
+.cf-chart-tooltip p:first-child {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cf-chart-tooltip p:last-child {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--cf-muted);
+}
+
+/* Light theme overrides. Kept explicit because nested selectors are not reliable here. */
+:root[data-theme="light"] .cf-brand {
+  min-height: 72px;
+  justify-content: flex-start;
+  align-items: center;
+  overflow: visible;
+}
+
+:root[data-theme="light"] .cf-brand-logo-light {
+  width: 210px;
+  height: auto;
+  max-height: 72px;
+  object-fit: contain;
+  object-position: left center;
+  display: block;
+  transform: none;
+  margin-left: 0;
+}
+
+:root[data-theme="light"] .cf-auth-logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: visible;
+}
+
+:root[data-theme="light"] .cf-auth-logo-img-light {
+  width: clamp(240px, 28vw, 320px);
+  height: auto;
+  display: block;
+  object-fit: contain;
+  transform: none;
+  transform-origin: center center;
+}
+
+:root[data-theme="light"] .cf-auth-logo.compact .cf-auth-logo-img-light {
+  width: clamp(240px, 28vw, 320px);
+  transform: none;
+}
+
+:root[data-theme="light"] .cf-lp-nav img {
+  width: 190px;
+}
+
+:root[data-theme="light"] .cf-app,
+:root[data-theme="light"] .cf-lp,
+:root[data-theme="light"] .cf-auth-page {
+    background:
+      radial-gradient(circle at 18% 8%, rgba(52, 224, 161, .08), transparent 28%),
+      radial-gradient(circle at 82% 16%, rgba(157, 139, 255, .1), transparent 32%),
+      var(--cf-bg);
+    color: var(--cf-text);
+}
+
+:root[data-theme="light"] .cf-sidebar {
+  border-right-color: var(--cf-border);
+  background: var(--cf-bg-elevated);
+  backdrop-filter: blur(18px);
+}
+
+:root[data-theme="light"] .cf-brand span,
+:root[data-theme="light"] .cf-title p,
+:root[data-theme="light"] .cf-section-header p,
+:root[data-theme="light"] .cf-help-text,
+:root[data-theme="light"] .cf-kpi-top,
+:root[data-theme="light"] .cf-cur,
+:root[data-theme="light"] .cf-dec,
+:root[data-theme="light"] .cf-row-sub,
+:root[data-theme="light"] .cf-empty,
+:root[data-theme="light"] .cf-status-metric span,
+:root[data-theme="light"] .cf-status-metric small,
+:root[data-theme="light"] .cf-lp-panel-head span,
+:root[data-theme="light"] .cf-lp-metric span,
+:root[data-theme="light"] .cf-lp-product-top span,
+:root[data-theme="light"] .cf-lp-kpi span,
+:root[data-theme="light"] .cf-lp-features p,
+:root[data-theme="light"] .cf-lp-steps p,
+:root[data-theme="light"] .cf-auth-card p,
+:root[data-theme="light"] .cf-auth-footer a,
+:root[data-theme="light"] .cf-lp-nav a,
+:root[data-theme="light"] .cf-auth-remember,
+:root[data-theme="light"] .cf-billing-tabs button {
+    color: var(--cf-text-soft);
+}
+
+:root[data-theme="light"] .cf-main,
+:root[data-theme="light"] .cf-account-trigger,
+:root[data-theme="light"] .cf-account-dropdown,
+:root[data-theme="light"] .cf-row-menu-list,
+:root[data-theme="light"] .cf-fab-menu,
+:root[data-theme="light"] .cf-modal,
+:root[data-theme="light"] .cf-card,
+:root[data-theme="light"] .cf-lp-panel,
+:root[data-theme="light"] .cf-lp-product,
+:root[data-theme="light"] .cf-lp-features article,
+:root[data-theme="light"] .cf-lp-steps article,
+:root[data-theme="light"] .cf-auth-card,
+:root[data-theme="light"] .cf-billing-address,
+:root[data-theme="light"] .cf-pix-qr-shell,
+:root[data-theme="light"] .cf-status-metric,
+:root[data-theme="light"] .cf-billing-tabs,
+:root[data-theme="light"] .cf-toast {
+    color: var(--cf-text);
+}
+
+:root[data-theme="light"] .cf-card,
+:root[data-theme="light"] .cf-lp-panel,
+:root[data-theme="light"] .cf-lp-product,
+:root[data-theme="light"] .cf-lp-features article,
+:root[data-theme="light"] .cf-lp-steps article,
+:root[data-theme="light"] .cf-auth-card,
+:root[data-theme="light"] .cf-modal,
+:root[data-theme="light"] .cf-account-dropdown,
+:root[data-theme="light"] .cf-row-menu-list,
+:root[data-theme="light"] .cf-fab-menu,
+:root[data-theme="light"] .cf-toast,
+:root[data-theme="light"] .cf-billing-address,
+:root[data-theme="light"] .cf-pix-qr-shell {
+    border-color: var(--cf-border);
+    background: var(--cf-panel);
+    box-shadow: var(--cf-shadow);
+}
+
+:root[data-theme="light"] .cf-account-trigger,
+:root[data-theme="light"] .cf-btn:not(.primary),
+:root[data-theme="light"] .cf-input,
+:root[data-theme="light"] .cf-select,
+:root[data-theme="light"] .cf-billing-tabs,
+:root[data-theme="light"] .cf-chip,
+:root[data-theme="light"] .cf-month {
+    background: var(--cf-surface);
+    color: var(--cf-text-strong);
+    border-color: var(--cf-border);
+}
+
+:root[data-theme="light"] .cf-account-trigger,
+:root[data-theme="light"] .cf-account-dropdown a,
+:root[data-theme="light"] .cf-account-dropdown button,
+:root[data-theme="light"] .cf-row-menu-list button,
+:root[data-theme="light"] .cf-fab-menu button {
+    color: var(--cf-text);
+}
+
+:root[data-theme="light"] .cf-account-dropdown a:hover,
+:root[data-theme="light"] .cf-account-dropdown button:hover,
+:root[data-theme="light"] .cf-row-menu-list button:hover,
+:root[data-theme="light"] .cf-fab-menu button:hover {
+    background: var(--cf-menu-hover);
+    color: var(--cf-text-strong);
+}
+
+:root[data-theme="light"] .cf-account-trigger {
+    background: var(--cf-surface);
+}
+
+:root[data-theme="light"] .cf-card h2,
+:root[data-theme="light"] .cf-card h3,
+:root[data-theme="light"] .cf-section-header h2,
+:root[data-theme="light"] .cf-auth-card h1,
+:root[data-theme="light"] .cf-lp-copy h1,
+:root[data-theme="light"] .cf-lp-section-head h2,
+:root[data-theme="light"] .cf-lp-features h3,
+:root[data-theme="light"] .cf-lp-steps h3,
+:root[data-theme="light"] .cf-lp-product-top strong,
+:root[data-theme="light"] .cf-status-metric strong,
+:root[data-theme="light"] .cf-money,
+:root[data-theme="light"] .cf-row-title {
+    color: var(--cf-text-strong);
+}
+
+:root[data-theme="light"] .cf-kpi-ico {
+    color: var(--cf-icon-strong);
+}
+
+:root[data-theme="light"] .cf-money-income,
+:root[data-theme="light"] .cf-money-income .cf-cur,
+:root[data-theme="light"] .cf-money-income .cf-dec {
+    color: var(--cf-success);
+}
+
+:root[data-theme="light"] .cf-money-expense,
+:root[data-theme="light"] .cf-money-expense .cf-cur,
+:root[data-theme="light"] .cf-money-expense .cf-dec {
+    color: var(--cf-danger);
+}
+
+:root[data-theme="light"] .cf-status-paid,
+:root[data-theme="light"] .cf-status-received,
+:root[data-theme="light"] .cf-status-whatsapp {
+    color: var(--cf-success-text);
+    background: var(--cf-success-soft);
+    border-color: rgba(22, 163, 74, 0.22);
+}
+
+:root[data-theme="light"] .cf-status-pending {
+    color: var(--cf-warning-text);
+    background: var(--cf-warning-soft);
+    border-color: rgba(217, 119, 6, 0.22);
+}
+
+:root[data-theme="light"] .cf-status-overdue {
+    color: var(--cf-danger-text);
+    background: var(--cf-danger-soft);
+    border-color: rgba(220, 38, 38, 0.22);
+}
+
+:root[data-theme="light"] .cf-status-planned,
+:root[data-theme="light"] .cf-status-projected,
+:root[data-theme="light"] .cf-status-fixed_bill {
+    color: var(--cf-icon-strong);
+    background: var(--cf-surface-3);
+    border-color: var(--cf-border);
+}
+
+:root[data-theme="light"] .cf-status-metric.paid strong,
+:root[data-theme="light"] .cf-status-metric.income strong {
+    color: var(--cf-success);
+}
+
+:root[data-theme="light"] .cf-status-metric.pending strong {
+    color: var(--cf-warning);
+}
+
+:root[data-theme="light"] .cf-status-metric.overdue strong {
+    color: var(--cf-danger);
+}
+
+:root[data-theme="light"] .cf-brand span,
+:root[data-theme="light"] .cf-nav a,
+:root[data-theme="light"] .cf-nav-button,
+:root[data-theme="light"] .cf-muted {
+    color: var(--cf-text-soft);
+}
+
+:root[data-theme="light"] .cf-nav a.active,
+:root[data-theme="light"] .cf-nav a:hover,
+:root[data-theme="light"] .cf-nav-button:hover,
+:root[data-theme="light"] .cf-account-dropdown a:hover,
+:root[data-theme="light"] .cf-account-dropdown button:hover,
+:root[data-theme="light"] .cf-row-menu-list button:hover,
+:root[data-theme="light"] .cf-fab-menu button:hover,
+:root[data-theme="light"] .cf-mobile-nav a.active,
+:root[data-theme="light"] .cf-lp-nav a:hover {
+    background: rgba(15, 23, 42, .05);
+    color: var(--cf-text-strong);
+    border-color: var(--cf-border-strong);
+}
+
+:root[data-theme="light"] .cf-account-trigger,
+:root[data-theme="light"] .cf-btn:not(.primary),
+:root[data-theme="light"] .cf-input,
+:root[data-theme="light"] .cf-select,
+:root[data-theme="light"] .cf-help-text,
+:root[data-theme="light"] .cf-chip,
+:root[data-theme="light"] .cf-month,
+:root[data-theme="light"] .cf-billing-tabs,
+:root[data-theme="light"] .cf-status-badge,
+:root[data-theme="light"] .cf-status-metric,
+:root[data-theme="light"] .cf-info-tooltip {
+    border-color: var(--cf-border);
+}
+
+:root[data-theme="light"] .cf-account-trigger,
+:root[data-theme="light"] .cf-btn:not(.primary),
+:root[data-theme="light"] .cf-input,
+:root[data-theme="light"] .cf-select,
+:root[data-theme="light"] .cf-billing-tabs,
+:root[data-theme="light"] .cf-chip,
+:root[data-theme="light"] .cf-month {
+    background: var(--cf-input-bg);
+    color: var(--cf-input-text);
+}
+
+:root[data-theme="light"] .cf-input,
+:root[data-theme="light"] .cf-select {
+    border-color: var(--cf-input-border);
+    color: var(--cf-input-text);
+    color-scheme: light;
+}
+
+:root[data-theme="light"] .cf-input::placeholder {
+    color: var(--cf-input-placeholder);
+}
+
+:root[data-theme="light"] .cf-select option {
+    background: var(--cf-surface);
+    color: var(--cf-text-strong);
+}
+
+:root[data-theme="light"] .cf-help-text,
+:root[data-theme="light"] .cf-chip,
+:root[data-theme="light"] .cf-month,
+:root[data-theme="light"] .cf-billing-tabs {
+    background: var(--cf-chip-bg);
+}
+
+:root[data-theme="light"] .cf-month {
+    background: var(--cf-date-bg);
+    border-color: var(--cf-date-border);
+}
+
+:root[data-theme="light"] .cf-month span {
+    color: var(--cf-date-text);
+}
+
+:root[data-theme="light"] .cf-month .cf-btn {
+    background: var(--cf-date-button-bg);
+    color: var(--cf-date-button-text);
+    border-color: var(--cf-date-border);
+}
+
+:root[data-theme="light"] .cf-month .cf-btn:hover {
+    background: var(--cf-menu-hover);
+    color: var(--cf-text-strong);
+}
+
+:root[data-theme="light"] .cf-modal-backdrop {
+    background: var(--cf-overlay);
+}
+
+:root[data-theme="light"] .cf-modal,
+:root[data-theme="light"] .cf-toast {
+    background: var(--cf-toast-bg);
+    border-color: var(--cf-toast-border);
+    color: var(--cf-toast-text);
+}
+
+:root[data-theme="light"] .cf-status-canceled,
+:root[data-theme="light"] .cf-status-manual,
+:root[data-theme="light"] .cf-billing-status.expired,
+:root[data-theme="light"] .cf-billing-status.canceled,
+:root[data-theme="light"] .cf-billing-status.refunded {
+    color: var(--cf-text-soft);
+    background: rgba(15, 23, 42, .04);
+    border-color: var(--cf-border);
+}
+
+:root[data-theme="light"] .cf-info-tooltip {
+    color: var(--cf-accent-2);
+    background: rgba(139, 92, 246, .12);
+    border-color: rgba(139, 92, 246, .24);
+}
+
+:root[data-theme="light"] .cf-info-tooltip span {
+    background: var(--cf-tooltip-bg);
+    color: var(--cf-tooltip-text);
+    border-color: var(--cf-tooltip-border);
+}
+
+:root[data-theme="light"] .cf-pix-qr-shell,
+:root[data-theme="light"] .cf-billing-address {
+    background: var(--cf-surface);
+}
+
+:root[data-theme="light"] .cf-pix-qr {
+    background: #fff;
+}
+
+:root[data-theme="light"] .cf-lp-product::before {
+    opacity: .55;
+}
+
+:root[data-theme="light"] .cf-billing-tabs button.active,
+:root[data-theme="light"] .cf-btn.primary {
+    color: #07100d;
+}

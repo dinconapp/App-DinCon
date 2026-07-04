@@ -1,4 +1,6 @@
-﻿import Link from "next/link";
+﻿"use client";
+
+import Link from "next/link";
 import {
   ArrowRight,
   BarChart3,
@@ -12,6 +14,8 @@ import {
   ShieldCheck,
   WalletCards
 } from "lucide-react";
+import { ThemeToggleButton } from "@/components/ui/ThemeToggleButton";
+import { useThemeMode } from "@/hooks/useThemeMode";
 
 const modules = [
   {
@@ -53,17 +57,20 @@ const trustItems = [
 ];
 
 export default function Home() {
+  const { theme } = useThemeMode();
+
   return (
     <main className="cf-lp">
       <nav className="cf-lp-nav" aria-label="Principal">
         <Link className="cf-lp-logo" href="/">
-          <img src="/logo/dincon_logo_dark_mode.png" alt="DinCon" />
+          <img src={theme === "dark" ? "/logo/dincon_logo_dark_mode.png" : "/logo/dincon_logo_light_transparente_final.png"} alt="DinCon" />
         </Link>
         <div className="cf-lp-nav-links" aria-label="Funcionalidades principais">
           {modules.map((module) => (
             <a key={module.title} href="#funcionalidades">{module.title.replace(" do mês", "")}</a>
           ))}
         </div>
+        <ThemeToggleButton />
       </nav>
 
       <section className="cf-lp-hero">

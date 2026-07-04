@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CalendarDays, ClipboardList, LayoutDashboard, PiggyBank, ReceiptText } from "lucide-react";
+import { useThemeMode } from "@/hooks/useThemeMode";
 import { resolveMonthKey } from "@/utils/month";
 
 const nav = [
@@ -17,14 +18,15 @@ export function Sidebar({ active }: { active: string; initial?: string }) {
   const searchParams = useSearchParams();
   const month = resolveMonthKey(searchParams.get("month"));
   const withMonth = (href: string) => `${href}?month=${month}`;
+  const { theme } = useThemeMode();
 
   return (
     <aside className="cf-sidebar">
       <div className="cf-brand">
         <img
-          src="/logo/dincon_logo_dark_mode.png"
+          src={theme === "dark" ? "/logo/dincon_logo_dark_mode.png" : "/logo/dincon_logo_light_transparente_final.png"}
           alt="Díncon - Controle Financeiro Inteligente"
-          className="cf-brand-logo"
+          className={`cf-brand-logo ${theme === "dark" ? "cf-brand-logo-dark" : "cf-brand-logo-light"}`}
         />
       </div>
       <nav className="cf-nav">
