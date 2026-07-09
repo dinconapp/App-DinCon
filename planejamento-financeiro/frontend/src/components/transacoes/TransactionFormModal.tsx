@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { DateInput } from "@/components/ui/DateInput";
@@ -8,9 +8,12 @@ import { Modal } from "@/components/ui/Modal";
 import type { Category } from "@/types/category";
 import type { Transaction, TransactionPayload } from "@/types/transaction";
 
+const NEW_CATEGORY_VALUE = "__new__";
+
 export function TransactionFormModal({ userId, monthKey, categories, initial, onClose, onSave }: { userId: string; monthKey: string; categories: Category[]; initial?: Transaction | null; onClose: () => void; onSave: (payload: TransactionPayload, id?: string) => Promise<void> }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const categoryInputRef = useRef<HTMLInputElement | null>(null);
   const [form, setForm] = useState<TransactionPayload>({
     user_id: userId,
     budget_id: initial?.budget_id ?? null,
@@ -23,7 +26,14 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
     status: initial?.status ?? "paid"
   });
   const availableCategories = useMemo(() => categories.filter((category) => category.type === form.kind), [categories, form.kind]);
-  const categorySelectValue = form.category_name?.trim() ? "__new__" : (form.category_id ?? "");
+  const isNewCategory = form.category_name?.trim().length ? true : false;
+  const categorySelectValue = isNewCategory ? NEW_CATEGORY_VALUE : (form.category_id ?? "");
+
+  useEffect(() => {
+    if (categorySelectValue === NEW_CATEGORY_VALUE) {
+      categoryInputRef.current?.focus();
+    }
+  }, [categorySelectValue]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -60,16 +70,17 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
             value={categorySelectValue}
             onChange={(e) => setForm({
               ...form,
-              category_id: e.target.value === "__new__" ? "" : e.target.value,
-              category_name: e.target.value === "__new__" ? form.category_name : ""
+              category_id: e.target.value === NEW_CATEGORY_VALUE ? "" : e.target.value,
+              category_name: e.target.value === NEW_CATEGORY_VALUE ? (form.category_name ?? "") : ""
             })}
           >
             <option value="">{form.kind === "income" ? "Sem categoria" : "Selecione"}</option>
             {availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-            <option value="__new__">Adicionar nova categoria</option>
+            <option value={NEW_CATEGORY_VALUE}>Adicionar nova categoria</option>
           </select>
-          {categorySelectValue === "__new__" && (
+          {categorySelectValue === NEW_CATEGORY_VALUE && (
             <input
+              ref={categoryInputRef}
               className="cf-input"
               value={form.category_name ?? ""}
               onChange={(e) => setForm({ ...form, category_name: e.target.value, category_id: "" })}
