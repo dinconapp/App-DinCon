@@ -202,6 +202,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
               status={getBudgetPaymentStatus(item, monthKey, paidBillIds, receivedIncomeIds)}
               onEdit={() => setEditing(item)}
               onDelete={() => deleteItem(item)}
+              onTogglePaid={() => toggleBill(item)}
             />
           ))}
         </CashFlowSection>
