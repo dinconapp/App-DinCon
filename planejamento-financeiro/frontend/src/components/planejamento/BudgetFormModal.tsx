@@ -192,7 +192,7 @@ export function BudgetFormModal({
         {isRecurringFixedItem && <div className="cf-help-text">{form.kind === "income" ? "Receita fixa sem data final." : "Despesa fixa sem data final."}</div>}
         {isExpenseProgrammable && <div className="cf-help-text">Despesa fixa com término futuro definido.</div>}
         {isExpenseVariable && <div className="cf-help-text">Despesa variável no comportamento anterior.</div>}
-        <label><span><input type="checkbox" checked={form.has_due_date} onChange={(e) => setForm({ ...form, has_due_date: e.target.checked, due_day: e.target.checked ? form.due_day ?? 1 : null })} /> Tem vencimento</span></label>
+        <label><span><input type="checkbox" checked={form.has_due_date} onChange={(e) => setForm({ ...form, has_due_date: e.target.checked, due_day: e.target.checked ? form.due_day ?? 1 : null })} /> {isIncomeKind(form.kind) ? "Data de recebimento" : "Tem vencimento"}</span></label>
         {form.has_due_date && (
           <label>{form.kind === "income" ? "Dia previsto para receber" : "Dia de vencimento"}
             <select className="cf-select" value={form.due_day ?? 1} onChange={(e) => setForm({ ...form, due_day: Number(e.target.value) })} required>
@@ -227,4 +227,8 @@ function getSubmitLabel(kind: BudgetPayload["kind"], isExpenseProgrammable: bool
     return "Salvar despesa programável";
   }
   return budgetType === "variable" ? "Salvar despesa variável" : "Salvar conta fixa";
+}
+
+function isIncomeKind(kind: string) {
+  return ["income", "receita", "entrada"].includes(String(kind).toLowerCase());
 }

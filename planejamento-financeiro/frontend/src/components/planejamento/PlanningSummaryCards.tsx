@@ -68,18 +68,24 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   const transactionIncome = useMemo(() => calculationTransactions.filter((item) => item.kind === "income"), [calculationTransactions]);
   const paidBillIds = useMemo(() => new Set(bills.paid.map((item) => item.budget_id)), [bills.paid]);
   const receivedIncomeIds = useMemo(() => new Set(activeTransactions.filter((item) => item.kind === "income" && item.status === "paid" && item.budget_id).map((item) => item.budget_id as string)), [activeTransactions]);
-  const pendingBillIds = useMemo(() => new Set(bills.pending.map((item) => item.budget_id)), [bills.pending]);
+  const plannedIncomeItems = useMemo(() => groups.income.filter((item) => !receivedIncomeIds.has(item.id)), [groups.income, receivedIncomeIds]);
+  const receivedIncomeItems = useMemo(() => groups.income.filter((item) => receivedIncomeIds.has(item.id)), [groups.income, receivedIncomeIds]);
+  const expenseBudgetItems = useMemo(() => [...groups.fixed, ...groups.variable], [groups.fixed, groups.variable]);
+  const openExpenseBudgetItems = useMemo(() => expenseBudgetItems.filter((item) => !paidBillIds.has(item.id)), [expenseBudgetItems, paidBillIds]);
+  const overdueExpenseBudgetItems = useMemo(() => openExpenseBudgetItems.filter((item) => getBudgetPaymentStatus(item, monthKey, paidBillIds, receivedIncomeIds).value === "overdue"), [openExpenseBudgetItems, monthKey, paidBillIds, receivedIncomeIds]);
+  const pendingExpenseBudgetItems = useMemo(() => openExpenseBudgetItems.filter((item) => getBudgetPaymentStatus(item, monthKey, paidBillIds, receivedIncomeIds).value === "pending"), [openExpenseBudgetItems, monthKey, paidBillIds, receivedIncomeIds]);
+  const overdueTransactionExpenses = useMemo(() => transactionExpenses.filter((item) => isOverdueTransaction(item)), [transactionExpenses]);
+  const pendingTransactionExpenses = useMemo(() => transactionExpenses.filter((item) => item.status === "pending" && !isOverdueTransaction(item)), [transactionExpenses]);
   const total = (rows: Budget[]) => rows.reduce((sum, item) => sum + item.amount, 0);
   const sumTx = (rows: Transaction[], status?: Transaction["status"]) => rows.reduce((sum, item) => sum + (status && item.status !== status ? 0 : item.amount), 0);
-  const plannedIncome = total(groups.income);
-  const plannedExpense = total(groups.fixed) + total(groups.variable) + sumTx(transactionExpenses);
+  const plannedIncome = total(plannedIncomeItems);
+  const receivedIncome = total(receivedIncomeItems) + sumTx(transactionIncome, "paid");
+  const plannedExpense = total(expenseBudgetItems) + sumTx(transactionExpenses);
   const paidExpense = sumTx(transactionExpenses, "paid") + groups.fixed.filter((item) => paidBillIds.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
-  const paidIncome = sumTx(transactionIncome, "paid") + groups.income.filter((item) => receivedIncomeIds.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
-  const overdueItems = groups.fixed.filter((item) => !paidBillIds.has(item.id) && pendingBillIds.has(item.id) && getBudgetPaymentStatus(item, monthKey, paidBillIds).value === "overdue");
-  const overdueExpense = overdueItems.reduce((sum, item) => sum + item.amount, 0);
-  const pendingExpense = Math.max(plannedExpense - paidExpense, 0);
+  const overdueExpense = overdueExpenseBudgetItems.reduce((sum, item) => sum + item.amount, 0) + overdueTransactionExpenses.reduce((sum, item) => sum + item.amount, 0);
+  const pendingExpense = pendingExpenseBudgetItems.reduce((sum, item) => sum + item.amount, 0) + pendingTransactionExpenses.reduce((sum, item) => sum + item.amount, 0);
   const projectedBalance = plannedIncome - plannedExpense;
-  const realizedBalance = paidIncome - paidExpense;
+  const realizedBalance = receivedIncome - paidExpense;
 
   async function deleteItem(item: Budget) {
     if (!window.confirm(`Remover "${item.description}"? Lançamentos vinculados também serão removidos.`)) return;
@@ -140,8 +146,8 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
         description="Previsto é o que foi cadastrado para o mês. Realizado é o que já foi lançado, pago ou recebido."
       />
       <div className="cf-grid cf-kpis">
-        <CashFlowKpi title="Receitas previstas" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${groups.income.length} registros`} />
-        <CashFlowKpi title="Receitas recebidas" value={paidIncome} tone="income" icon={<CheckCircle2 size={19} />} detail="Receitas já realizadas" />
+        <CashFlowKpi title="Receitas previstas" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${plannedIncomeItems.length} registros`} />
+        <CashFlowKpi title="Receitas recebidas" value={receivedIncome} tone="income" icon={<CheckCircle2 size={19} />} detail={`${receivedIncomeItems.length} registros`} />
         <CashFlowKpi title="Contas pendentes" value={pendingExpense} tone="expense" icon={<Clock3 size={19} />} detail="Saídas em aberto" />
         <CashFlowKpi title="Saldo previsto" value={projectedBalance} tone={projectedBalance >= 0 ? "income" : "expense"} icon={<Wallet size={19} />} detail={`Realizado: ${formatCurrency(realizedBalance)}`} />
       </div>
@@ -151,7 +157,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
           <StatusMetric label="Pago" value={paidExpense} helper="Saídas realizadas no mês" tone="paid" />
           <StatusMetric label="Pendente" value={pendingExpense} helper="Saídas ainda em aberto" tone="pending" />
           <StatusMetric label="Atrasado" value={overdueExpense} helper="Vencimentos em atraso" tone="overdue" />
-          <StatusMetric label="Recebido" value={paidIncome} helper="Receitas realizadas" tone="income" />
+          <StatusMetric label="Recebido" value={receivedIncome} helper="Receitas realizadas" tone="income" />
         </div>
       </Card>
 
@@ -163,7 +169,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
               key={item.id}
               item={item}
               monthKey={monthKey}
-              status={getBudgetPaymentStatus(item, monthKey, paidBillIds)}
+              status={getBudgetPaymentStatus(item, monthKey, paidBillIds, receivedIncomeIds)}
               onEdit={() => setEditing(item)}
               onDelete={() => deleteItem(item)}
               onTogglePaid={() => toggleBill(item)}
@@ -178,7 +184,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
               key={item.id}
               item={item}
               monthKey={monthKey}
-              status={receivedIncomeIds.has(item.id) ? { value: "received", label: "Recebido", detail: "Receita realizada" } : { value: "planned", label: "Previsto", detail: "Receita prevista" }}
+              status={getBudgetPaymentStatus(item, monthKey, paidBillIds, receivedIncomeIds)}
               onEdit={() => setEditing(item)}
               onDelete={() => deleteItem(item)}
               onTogglePaid={() => toggleIncome(item)}
@@ -193,7 +199,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
               key={item.id}
               item={item}
               monthKey={monthKey}
-              status={getBudgetPaymentStatus(item, monthKey, paidBillIds)}
+              status={getBudgetPaymentStatus(item, monthKey, paidBillIds, receivedIncomeIds)}
               onEdit={() => setEditing(item)}
               onDelete={() => deleteItem(item)}
             />
@@ -260,13 +266,26 @@ function dueDateFor(monthKey: string, dueDay?: number | null) {
   return new Date(year, month - 1, Math.min(dueDay, lastDay), 23, 59, 59);
 }
 
-function getBudgetPaymentStatus(item: Budget, monthKey: string, paidBillIds: Set<string>): PaymentStatus {
+function getBudgetPaymentStatus(item: Budget, monthKey: string, paidBillIds: Set<string>, receivedIncomeIds: Set<string>): PaymentStatus {
+  if (item.kind === "income") {
+    if (receivedIncomeIds.has(item.id)) return { value: "received", label: "Recebido", detail: "Receita recebida" };
+    if (!item.has_due_date || !item.due_day) return { value: "planned", label: "Previsto", detail: "Receita prevista" };
+
+    const dueDate = dueDateFor(monthKey, item.due_day);
+    if (dueDate && dueDate.getTime() < Date.now()) return { value: "overdue", label: "Atrasado", detail: `Recebimento previsto em atraso desde ${formatDateFromDate(dueDate)}` };
+    return { value: "pending", label: "Pendente", detail: dueDate ? `Recebimento previsto para ${formatDateFromDate(dueDate)}` : "Aguardando recebimento" };
+  }
+
   if (paidBillIds.has(item.id)) return { value: "paid", label: "Pago", detail: "Pagamento confirmado" };
-  if (!item.has_due_date || !item.due_day) return { value: "planned", label: "Previsto", detail: item.kind === "income" ? "Receita prevista" : "Sem vencimento" };
+  if (!item.has_due_date || !item.due_day) return { value: "planned", label: "Previsto", detail: "Sem vencimento" };
 
   const dueDate = dueDateFor(monthKey, item.due_day);
   if (dueDate && dueDate.getTime() < Date.now()) return { value: "overdue", label: "Atrasado", detail: `Venceu em ${formatDateFromDate(dueDate)}` };
   return { value: "pending", label: "Pendente", detail: dueDate ? `Vence em ${formatDateFromDate(dueDate)}` : "Aguardando pagamento" };
+}
+
+function isOverdueTransaction(item: Transaction) {
+  return item.kind === "expense" && item.status === "pending" && new Date(`${item.transaction_date}T23:59:59`).getTime() < Date.now();
 }
 
 function formatDate(value: string) {

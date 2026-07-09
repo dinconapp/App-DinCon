@@ -228,7 +228,8 @@
 .cf-status-metric span { color: #8F99A8; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .cf-status-metric strong { color: #F3F6FA; font-size: 20px; }
 .cf-status-metric small { color: #8F99A8; }
-.cf-status-metric.paid strong, .cf-status-metric.income strong { color: #43E6A3; }
+.cf-status-metric.paid strong { color: #FF6B7A; }
+.cf-status-metric.income strong { color: #43E6A3; }
 .cf-status-metric.pending strong { color: #F4C25A; }
 .cf-status-metric.overdue strong { color: #FF6B7A; }
 .cf-status-legend { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -243,12 +244,13 @@
 .cf-status-fixed_bill { color: #9EC8FF; background: rgba(88,159,255,.1); border-color: rgba(88,159,255,.24); }
 .cf-cashflow-list { display: grid; }
 .cf-cashflow-row { align-items: flex-start; }
-.cf-cashflow-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.cf-cashflow-actions { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; justify-content: flex-end; }
 .cf-dot-paid { background: rgba(67,230,163,.12); color: #43E6A3; }
 .cf-dot-received { background: rgba(67,230,163,.12); color: #43E6A3; }
 .cf-dot-pending { background: rgba(244,194,90,.12); color: #F4C25A; }
 .cf-dot-overdue { background: rgba(255,107,122,.12); color: #FF6B7A; }
 .cf-dot-planned { background: rgba(117,156,255,.12); color: #AFC7FF; }
+.cf-dot-canceled { background: rgba(255,255,255,.06); color: #B9C1CF; }
 
 .cf-lp, .cf-auth-page {
   min-height: 100vh;
@@ -1293,7 +1295,10 @@
     border-color: var(--cf-border);
 }
 
-:root[data-theme="light"] .cf-status-metric.paid strong,
+:root[data-theme="light"] .cf-status-metric.paid strong {
+    color: var(--cf-danger);
+}
+
 :root[data-theme="light"] .cf-status-metric.income strong {
     color: var(--cf-success);
 }
