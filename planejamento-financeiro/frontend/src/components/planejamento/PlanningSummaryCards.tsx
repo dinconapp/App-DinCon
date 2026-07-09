@@ -104,7 +104,16 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
       try {
         const paidTransaction = tx.items.find((txItem) => txItem.kind === "expense" && txItem.status === "paid" && txItem.budget_id === item.id);
         if (paidTransaction) {
-          await tx.remove(paidTransaction.id);
+          await tx.save({
+            user_id: paidTransaction.user_id,
+            budget_id: paidTransaction.budget_id,
+            category_id: paidTransaction.category_id,
+            kind: paidTransaction.kind,
+            title: paidTransaction.title,
+            amount: paidTransaction.amount,
+            transaction_date: paidTransaction.transaction_date,
+            status: "pending"
+          }, paidTransaction.id);
           onDone("Despesa voltou para pendente.");
         } else {
           await tx.save({
@@ -119,7 +128,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
           });
           onDone("Despesa marcada como paga.");
         }
-        await Promise.all([loadBills(), reloadBudgets()]);
+        await Promise.all([tx.reload(), loadBills(), reloadBudgets()]);
       } catch {
         onDone("Nao foi possivel atualizar a despesa. Tente novamente.", "error");
       }
