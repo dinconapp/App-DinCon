@@ -36,6 +36,9 @@ export function BudgetFormModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const categoryInputRef = useRef<HTMLInputElement | null>(null);
+  const [categoryMode, setCategoryMode] = useState<"existing" | "new">(
+    initial?.category_name && !initial?.category_id ? "new" : "existing"
+  );
   const [form, setForm] = useState<BudgetPayload>({
     user_id: userId,
     description: initial?.description ?? "",
@@ -51,8 +54,7 @@ export function BudgetFormModal({
   });
 
   const availableCategories = useMemo(() => categories.filter((category) => category.type === form.kind), [categories, form.kind]);
-  const isNewCategory = form.category_name?.trim().length ? true : false;
-  const categorySelectValue = isNewCategory ? NEW_CATEGORY_VALUE : (form.category_id ?? "");
+  const categorySelectValue = categoryMode === "new" ? NEW_CATEGORY_VALUE : (form.category_id ?? "");
   const isRecurringFixedItem = form.budget_type === "fixed";
   const budgetName = getBudgetName(form.kind, form.budget_type);
 
@@ -65,8 +67,12 @@ export function BudgetFormModal({
   async function submit(event: FormEvent) {
     event.preventDefault();
     const categoryName = form.category_name?.trim() || "";
-    const categoryId = categoryName ? null : (form.category_id || null);
-    if (!categoryId && !categoryName) {
+    const categoryId = categoryMode === "new" ? null : (form.category_id || null);
+    if (categoryMode === "new" && !categoryName) {
+      setError("Digite o nome da categoria.");
+      return;
+    }
+    if (categoryMode !== "new" && !categoryId) {
       setError("Selecione ou cadastre uma categoria.");
       return;
     }
@@ -78,7 +84,7 @@ export function BudgetFormModal({
         {
           ...form,
           category_id: categoryId,
-          category_name: categoryName || null,
+          category_name: categoryMode === "new" ? categoryName || null : null,
           end_month: isRecurringFixedItem ? null : form.end_month,
           due_day: form.has_due_date ? form.due_day : null
         },
@@ -97,18 +103,26 @@ export function BudgetFormModal({
       <form className="cf-form" onSubmit={submit}>
         <label>{form.kind === "income" ? "Nome da receita" : "Nome da despesa"}<input className="cf-input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required /></label>
         <div className="cf-grid cf-two">
-          <label>Tipo<select className="cf-select" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as BudgetPayload["kind"], category_id: "", category_name: "", end_month: form.budget_type === "fixed" ? null : form.end_month })}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
+          <label>Tipo<select className="cf-select" value={form.kind} onChange={(e) => {
+            const kind = e.target.value as BudgetPayload["kind"];
+            setCategoryMode("existing");
+            setForm({ ...form, kind, category_id: "", category_name: "", end_month: form.budget_type === "fixed" ? null : form.end_month });
+          }}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
           <label>Recorrencia<select className="cf-select" value={form.budget_type} onChange={(e) => setForm({ ...form, budget_type: e.target.value as BudgetPayload["budget_type"], end_month: e.target.value === "fixed" ? null : form.end_month })}><option value="fixed">Fixa</option><option value="variable">Variavel</option></select></label>
         </div>
         <label>Categoria
           <select
             className="cf-select"
             value={categorySelectValue}
-            onChange={(e) => setForm({
-              ...form,
-              category_id: e.target.value === NEW_CATEGORY_VALUE ? "" : e.target.value,
-              category_name: e.target.value === NEW_CATEGORY_VALUE ? (form.category_name ?? "") : ""
-            })}
+            onChange={(e) => {
+              if (e.target.value === NEW_CATEGORY_VALUE) {
+                setCategoryMode("new");
+                setForm({ ...form, category_id: "" });
+                return;
+              }
+              setCategoryMode("existing");
+              setForm({ ...form, category_id: e.target.value, category_name: "" });
+            }}
           >
             <option value="">Selecione</option>
             {availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}

@@ -14,6 +14,9 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const categoryInputRef = useRef<HTMLInputElement | null>(null);
+  const [categoryMode, setCategoryMode] = useState<"existing" | "new">(
+    initial?.category_name && !initial?.category_id ? "new" : "existing"
+  );
   const [form, setForm] = useState<TransactionPayload>({
     user_id: userId,
     budget_id: initial?.budget_id ?? null,
@@ -26,8 +29,7 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
     status: initial?.status ?? "paid"
   });
   const availableCategories = useMemo(() => categories.filter((category) => category.type === form.kind), [categories, form.kind]);
-  const isNewCategory = form.category_name?.trim().length ? true : false;
-  const categorySelectValue = isNewCategory ? NEW_CATEGORY_VALUE : (form.category_id ?? "");
+  const categorySelectValue = categoryMode === "new" ? NEW_CATEGORY_VALUE : (form.category_id ?? "");
 
   useEffect(() => {
     if (categorySelectValue === NEW_CATEGORY_VALUE) {
@@ -38,8 +40,12 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
   async function submit(event: FormEvent) {
     event.preventDefault();
     const categoryName = form.category_name?.trim() || "";
-    const categoryId = categoryName ? null : (form.category_id || null);
-    if (form.kind === "expense" && !categoryId && !categoryName) {
+    const categoryId = categoryMode === "new" ? null : (form.category_id || null);
+    if (categoryMode === "new" && !categoryName) {
+      setError("Digite o nome da categoria.");
+      return;
+    }
+    if (form.kind === "expense" && categoryMode !== "new" && !categoryId) {
       setError("Selecione ou cadastre uma categoria para o gasto.");
       return;
     }
@@ -47,7 +53,7 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
     setSubmitting(true);
     setError("");
     try {
-      await onSave({ ...form, category_id: categoryId, category_name: categoryName || null }, initial?.id);
+      await onSave({ ...form, category_id: categoryId, category_name: categoryMode === "new" ? categoryName || null : null }, initial?.id);
       onClose();
     } catch {
       setError("Nao foi possivel salvar o lancamento. Tente novamente.");
@@ -61,18 +67,26 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
       <form className="cf-form" onSubmit={submit}>
         <label>Descricao<input className="cf-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required /></label>
         <div className="cf-grid cf-two">
-          <label>Tipo<select className="cf-select" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as TransactionPayload["kind"], category_id: "", category_name: "" })}><option value="expense">Gasto</option><option value="income">Entrada</option></select></label>
+          <label>Tipo<select className="cf-select" value={form.kind} onChange={(e) => {
+            const kind = e.target.value as TransactionPayload["kind"];
+            setCategoryMode("existing");
+            setForm({ ...form, kind, category_id: "", category_name: "" });
+          }}><option value="expense">Gasto</option><option value="income">Entrada</option></select></label>
           <label>Status<select className="cf-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as TransactionPayload["status"] })}><option value="paid">Pago</option><option value="pending">Pendente</option><option value="canceled">Cancelado</option></select></label>
         </div>
         <label>Categoria
           <select
             className="cf-select"
             value={categorySelectValue}
-            onChange={(e) => setForm({
-              ...form,
-              category_id: e.target.value === NEW_CATEGORY_VALUE ? "" : e.target.value,
-              category_name: e.target.value === NEW_CATEGORY_VALUE ? (form.category_name ?? "") : ""
-            })}
+            onChange={(e) => {
+              if (e.target.value === NEW_CATEGORY_VALUE) {
+                setCategoryMode("new");
+                setForm({ ...form, category_id: "" });
+                return;
+              }
+              setCategoryMode("existing");
+              setForm({ ...form, category_id: e.target.value, category_name: "" });
+            }}
           >
             <option value="">{form.kind === "income" ? "Sem categoria" : "Selecione"}</option>
             {availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
