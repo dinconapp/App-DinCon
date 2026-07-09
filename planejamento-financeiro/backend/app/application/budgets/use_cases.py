@@ -49,7 +49,7 @@ class BudgetUseCases:
         if payload.category_id:
             category = self.categories.get(payload.category_id)
         elif payload.category_name:
-            category = CategoryUseCases(self.categories).resolve_or_create_category(payload.category_name, payload.kind)
+            category = CategoryUseCases(self.categories).resolve_or_create_category(payload.category_name, payload.kind, payload.user_id)
         if category and category.type != payload.kind:
             raise ValueError("Categoria incompativel com o tipo do item.")
         if not allow_none and not category:

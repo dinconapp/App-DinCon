@@ -9,10 +9,13 @@ class SqlAlchemyCategoryRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def list(self, type: str | None = None):
-        stmt = select(CategoryModel).where(CategoryModel.active.is_(True)).order_by(CategoryModel.type, CategoryModel.name)
+    def list(self, type: str | None = None, user_id: str | None = None):
+        stmt = select(CategoryModel).where(CategoryModel.active.is_(True))
+        if user_id:
+            stmt = stmt.where((CategoryModel.user_id.is_(None)) | (CategoryModel.user_id == user_id))
         if type:
             stmt = stmt.where(CategoryModel.type == type)
+        stmt = stmt.order_by(CategoryModel.type, CategoryModel.user_id.is_not(None).desc(), CategoryModel.name)
         return list(self.db.scalars(stmt))
 
     def get(self, category_id: str) -> CategoryModel:
@@ -21,10 +24,13 @@ class SqlAlchemyCategoryRepository:
             raise NotFoundError("Categoria nao encontrada.")
         return category
 
-    def find_by_normalized_name(self, name: str, category_type: str):
+    def find_by_normalized_name(self, name: str, category_type: str, user_id: str | None = None):
         wanted = normalize_category_name(name)
-        categories = self.list(category_type)
-        return next((category for category in categories if normalize_category_name(category.name) == wanted), None)
+        categories = self.list(category_type, user_id)
+        matches = [category for category in categories if normalize_category_name(category.name) == wanted]
+        if user_id:
+            return next((category for category in matches if category.user_id == user_id), None)
+        return next(iter(matches), None)
 
     def create(self, data: dict) -> CategoryModel:
         category = CategoryModel(**data)

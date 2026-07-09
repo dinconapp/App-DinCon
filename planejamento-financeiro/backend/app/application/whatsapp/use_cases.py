@@ -382,7 +382,7 @@ class WhatsAppWebhookUseCases:
         return self._create_draft_from_text(user_id, whatsapp_message_id, text)
 
     def _create_draft_from_text(self, user_id: str, message_id: str, text: str):
-        categories = self.categories.list()
+        categories = self.categories.list(user_id=user_id)
         logger.info(
             "whatsapp.ai.interpret.start message_id=%s user_id=%s categories_count=%s text_length=%s",
             message_id,
@@ -400,7 +400,7 @@ class WhatsAppWebhookUseCases:
             interpreted.category_name,
             interpreted.confidence,
         )
-        category = CategoryUseCases(self.categories).resolve_or_create_category(interpreted.category_name, interpreted.kind)
+        category = CategoryUseCases(self.categories).resolve_or_create_category(interpreted.category_name, interpreted.kind, user_id)
         logger.info(
             "whatsapp.category.match message_id=%s user_id=%s requested=%s matched_category_id=%s",
             message_id,

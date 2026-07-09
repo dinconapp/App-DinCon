@@ -87,5 +87,5 @@ class TransactionUseCases:
         if payload.category_id:
             return self.categories.get(payload.category_id)
         if payload.category_name:
-            return CategoryUseCases(self.categories).resolve_or_create_category(payload.category_name, payload.kind)
+            return CategoryUseCases(self.categories).resolve_or_create_category(payload.category_name, payload.kind, payload.user_id)
         return None

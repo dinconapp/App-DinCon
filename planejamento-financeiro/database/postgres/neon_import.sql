@@ -26,8 +26,22 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_users_email ON users(email) WHERE email IS NOT NULL;
 
+CREATE TABLE IF NOT EXISTS suggestions (
+  id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(180) NOT NULL,
+  message TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open','reviewing','closed')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_suggestions_user_status ON suggestions(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_suggestions_created_at ON suggestions(created_at);
+
 CREATE TABLE IF NOT EXISTS categories (
   id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36) NULL REFERENCES users(id),
   name VARCHAR(120) NOT NULL,
   type VARCHAR(20) NOT NULL CHECK (type IN ('income','expense')),
   icon_key VARCHAR(80) NULL,
@@ -36,6 +50,9 @@ CREATE TABLE IF NOT EXISTS categories (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_categories_user_type ON categories(user_id, type);
+CREATE INDEX IF NOT EXISTS idx_categories_type_active ON categories(type, active);
 
 CREATE TABLE IF NOT EXISTS budgets (
   id VARCHAR(36) PRIMARY KEY,

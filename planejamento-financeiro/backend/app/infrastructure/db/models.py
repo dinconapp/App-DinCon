@@ -36,6 +36,7 @@ class UserModel(Base):
 
     budgets = relationship("BudgetModel", back_populates="user")
     transactions = relationship("TransactionModel", back_populates="user")
+    suggestions = relationship("SuggestionModel", back_populates="user", cascade="all, delete-orphan")
     address = relationship("UserAddressModel", back_populates="user", cascade="all, delete-orphan", uselist=False)
 
 
@@ -83,10 +84,30 @@ class EmailVerificationAttemptModel(Base):
     )
 
 
+class SuggestionModel(Base):
+    __tablename__ = "suggestions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(String(180), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(app_enum("open", "reviewing", "closed"), nullable=False, default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("UserModel", back_populates="suggestions")
+
+    __table_args__ = (
+        Index("idx_suggestions_user_status", "user_id", "status"),
+        Index("idx_suggestions_created_at", "created_at"),
+    )
+
+
 class CategoryModel(Base):
     __tablename__ = "categories"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     type: Mapped[str] = mapped_column(app_enum("income", "expense"), nullable=False)
     icon_key: Mapped[str | None] = mapped_column(String(80))
@@ -94,6 +115,8 @@ class CategoryModel(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("UserModel")
 
 
 class BudgetModel(Base):
