@@ -23,6 +23,7 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
     status: initial?.status ?? "paid"
   });
   const availableCategories = useMemo(() => categories.filter((category) => category.type === form.kind), [categories, form.kind]);
+  const categorySelectValue = form.category_name?.trim() ? "__new__" : (form.category_id ?? "");
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -53,8 +54,29 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
           <label>Tipo<select className="cf-select" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as TransactionPayload["kind"], category_id: "", category_name: "" })}><option value="expense">Gasto</option><option value="income">Entrada</option></select></label>
           <label>Status<select className="cf-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as TransactionPayload["status"] })}><option value="paid">Pago</option><option value="pending">Pendente</option><option value="canceled">Cancelado</option></select></label>
         </div>
-        <label>Categoria existente<select className="cf-select" value={form.category_id ?? ""} onChange={(e) => setForm({ ...form, category_id: e.target.value, category_name: e.target.value ? "" : form.category_name })}><option value="">{form.kind === "income" ? "Sem categoria" : "Selecione"}</option>{availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-        <label>Ou crie uma nova categoria<input className="cf-input" value={form.category_name ?? ""} onChange={(e) => setForm({ ...form, category_name: e.target.value, category_id: e.target.value.trim() ? "" : form.category_id })} placeholder="Ex: Mercado, Transporte, Freelance" /></label>
+        <label>Categoria
+          <select
+            className="cf-select"
+            value={categorySelectValue}
+            onChange={(e) => setForm({
+              ...form,
+              category_id: e.target.value === "__new__" ? "" : e.target.value,
+              category_name: e.target.value === "__new__" ? form.category_name : ""
+            })}
+          >
+            <option value="">{form.kind === "income" ? "Sem categoria" : "Selecione"}</option>
+            {availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            <option value="__new__">Adicionar nova categoria</option>
+          </select>
+          {categorySelectValue === "__new__" && (
+            <input
+              className="cf-input"
+              value={form.category_name ?? ""}
+              onChange={(e) => setForm({ ...form, category_name: e.target.value, category_id: "" })}
+              placeholder="Digite o nome da categoria"
+            />
+          )}
+        </label>
         <div className="cf-grid cf-two">
           <label>Valor<CurrencyInput value={form.amount} onChange={(amount) => setForm({ ...form, amount })} required /></label>
           <label>Data<DateInput value={form.transaction_date} onChange={(transaction_date) => setForm({ ...form, transaction_date })} required /></label>

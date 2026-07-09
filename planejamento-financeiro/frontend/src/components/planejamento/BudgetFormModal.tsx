@@ -48,6 +48,7 @@ export function BudgetFormModal({
     due_day: initial?.due_day ?? (defaultHasDueDate ? 1 : null)
   });
   const availableCategories = useMemo(() => categories.filter((category) => category.type === form.kind), [categories, form.kind]);
+  const categorySelectValue = form.category_name?.trim() ? "__new__" : (form.category_id ?? "");
   const isRecurringFixedItem = form.budget_type === "fixed";
   const budgetName = getBudgetName(form.kind, form.budget_type);
 
@@ -89,8 +90,29 @@ export function BudgetFormModal({
           <label>Tipo<select className="cf-select" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as BudgetPayload["kind"], category_id: "", category_name: "", end_month: form.budget_type === "fixed" ? null : form.end_month })}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
           <label>Recorrencia<select className="cf-select" value={form.budget_type} onChange={(e) => setForm({ ...form, budget_type: e.target.value as BudgetPayload["budget_type"], end_month: e.target.value === "fixed" ? null : form.end_month })}><option value="fixed">Fixa</option><option value="variable">Variavel</option></select></label>
         </div>
-        <label>Categoria existente<select className="cf-select" value={form.category_id ?? ""} onChange={(e) => setForm({ ...form, category_id: e.target.value, category_name: e.target.value ? "" : form.category_name })}><option value="">Selecione</option>{availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-        <label>Ou crie uma nova categoria<input className="cf-input" value={form.category_name ?? ""} onChange={(e) => setForm({ ...form, category_name: e.target.value, category_id: e.target.value.trim() ? "" : form.category_id })} placeholder="Ex: Mercado, Transporte, Freelance" /></label>
+        <label>Categoria
+          <select
+            className="cf-select"
+            value={categorySelectValue}
+            onChange={(e) => setForm({
+              ...form,
+              category_id: e.target.value === "__new__" ? "" : e.target.value,
+              category_name: e.target.value === "__new__" ? form.category_name : ""
+            })}
+          >
+            <option value="">Selecione</option>
+            {availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            <option value="__new__">Adicionar nova categoria</option>
+          </select>
+          {categorySelectValue === "__new__" && (
+            <input
+              className="cf-input"
+              value={form.category_name ?? ""}
+              onChange={(e) => setForm({ ...form, category_name: e.target.value, category_id: "" })}
+              placeholder="Digite o nome da categoria"
+            />
+          )}
+        </label>
         <div className="cf-grid cf-three">
           <label>{form.kind === "income" ? "Valor previsto" : "Valor da despesa"}<CurrencyInput value={form.amount} onChange={(amount) => setForm({ ...form, amount })} required /></label>
           <label>Comeca em<input className="cf-input" type="month" value={form.start_month ?? ""} onChange={(e) => setForm({ ...form, start_month: e.target.value || null })} /></label>
