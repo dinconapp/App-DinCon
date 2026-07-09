@@ -168,16 +168,18 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   if (loading || tx.loading || billsLoading) return <div className="cf-card">Carregando fluxo de caixa...</div>;
   return (
     <div className="cf-grid">
-      <SectionHeader
-        title="Resumo do mês"
-        description="Previsto é o que foi cadastrado para o mês. Realizado é o que já foi lançado, pago ou recebido."
-      />
-      <div className="cf-grid cf-kpis">
-        <CashFlowKpi title="Receitas previstas" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${plannedIncomeItems.length} registros`} />
-        <CashFlowKpi title="Receitas recebidas" value={receivedIncome} tone="income" icon={<CheckCircle2 size={19} />} detail={`${receivedIncomeItems.length} registros`} />
-        <CashFlowKpi title="Contas pendentes" value={pendingExpense} tone="expense" icon={<Clock3 size={19} />} detail="Saídas em aberto" />
-        <CashFlowKpi title="Saldo previsto" value={projectedBalance} tone={projectedBalance >= 0 ? "income" : "expense"} icon={<Wallet size={19} />} detail={`Realizado: ${formatCurrency(realizedBalance)}`} />
-      </div>
+      <Card>
+        <SectionHeader
+          title="Resumo do mês"
+          description="Previsto é o que foi cadastrado para o mês. Realizado é o que já foi lançado, pago ou recebido."
+        />
+        <div className="cf-grid cf-kpis">
+          <CashFlowKpi title="Receitas previstas" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${plannedIncomeItems.length} registros`} />
+          <CashFlowKpi title="Receitas recebidas" value={receivedIncome} tone="income" icon={<CheckCircle2 size={19} />} detail={`${receivedIncomeItems.length} registros`} />
+          <CashFlowKpi title="Contas pendentes" value={pendingExpense} tone="expense" icon={<Clock3 size={19} />} detail="Saídas em aberto" />
+          <CashFlowKpi title="Saldo previsto" value={projectedBalance} tone={projectedBalance >= 0 ? "income" : "expense"} icon={<Wallet size={19} />} detail={`Realizado: ${formatCurrency(realizedBalance)}`} />
+        </div>
+      </Card>
 
       <Card title="Dashboard do fluxo" meta={<StatusLegend />}>
         <div className="cf-cashflow-dashboard">
