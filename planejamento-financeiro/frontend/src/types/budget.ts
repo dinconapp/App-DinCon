@@ -19,6 +19,7 @@ export type Budget = {
   category_icon_key?: string | null;
 };
 
-export type BudgetPayload = Omit<Budget, "id" | "active" | "category_name" | "category_color" | "category_icon_key"> & {
+export type BudgetPayload = Omit<Budget, "id" | "active" | "category_id" | "category_name" | "category_color" | "category_icon_key"> & {
+  category_id?: string | null;
   category_name?: string | null;
 };
