@@ -72,7 +72,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   const plannedIncomeItems = useMemo(() => groups.income.filter((item) => !receivedIncomeIds.has(item.id)), [groups.income, receivedIncomeIds]);
   const receivedIncomeItems = useMemo(() => groups.income.filter((item) => receivedIncomeIds.has(item.id)), [groups.income, receivedIncomeIds]);
   const expenseBudgetItems = useMemo(() => [...groups.fixed, ...groups.variable], [groups.fixed, groups.variable]);
-  const openExpenseBudgetItems = useMemo(() => expenseBudgetItems.filter((item) => !paidBillIds.has(item.id) && !paidExpenseBudgetIds.has(item.id)), [expenseBudgetItems, paidBillIds, paidExpenseBudgetIds]);
+  const openExpenseBudgetItems = useMemo(() => expenseBudgetItems.filter((item) => !paidBillIds.has(item.id)), [expenseBudgetItems, paidBillIds]);
   const overdueExpenseBudgetItems = useMemo(() => openExpenseBudgetItems.filter((item) => getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds).value === "overdue"), [openExpenseBudgetItems, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds]);
   const pendingExpenseBudgetItems = useMemo(() => openExpenseBudgetItems.filter((item) => getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds).value === "pending"), [openExpenseBudgetItems, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds]);
   const overdueTransactionExpenses = useMemo(() => transactionExpenses.filter((item) => isOverdueTransaction(item)), [transactionExpenses]);
