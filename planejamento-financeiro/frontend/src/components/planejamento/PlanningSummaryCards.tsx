@@ -367,7 +367,7 @@ function CashFlowBudgetRow({
         <div style={{ minWidth: 0 }}>
           <div className="cf-row-title">{item.description}</div>
           <div className="cf-row-sub">
-            {item.category_name ?? "Sem categoria"} - {item.budget_type === "fixed" ? "Fixo" : "Variável"}
+            {item.category_name ?? "Sem categoria"} - {getBudgetFrequencyLabel(item)}
             {dueDate ? ` - venc. ${formatDateFromDate(dueDate)}` : ""}
           </div>
           <div className="cf-row-sub">{status.detail}</div>
@@ -418,4 +418,11 @@ function CashFlowTransactionRow({ item }: { item: Transaction }) {
       </div>
     </div>
   );
+}
+
+function getBudgetFrequencyLabel(item: Budget) {
+  if (item.kind === "expense" && item.budget_type === "fixed" && item.end_month) {
+    return "Programável";
+  }
+  return item.budget_type === "fixed" ? "Fixo" : "Variável";
 }

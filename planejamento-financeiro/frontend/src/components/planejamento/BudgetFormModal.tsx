@@ -39,6 +39,9 @@ export function BudgetFormModal({
   const [categoryMode, setCategoryMode] = useState<"existing" | "new">(
     initial?.category_name && !initial?.category_id ? "new" : "existing"
   );
+  const [expenseRecurrenceMode, setExpenseRecurrenceMode] = useState<"fixed" | "programmable">(
+    initial?.kind === "expense" && (initial?.end_month || initial?.budget_type === "variable") ? "programmable" : "fixed"
+  );
   const [form, setForm] = useState<BudgetPayload>({
     user_id: userId,
     description: initial?.description ?? "",
@@ -55,8 +58,11 @@ export function BudgetFormModal({
 
   const availableCategories = useMemo(() => categories.filter((category) => category.type === form.kind), [categories, form.kind]);
   const categorySelectValue = categoryMode === "new" ? NEW_CATEGORY_VALUE : (form.category_id ?? "");
-  const isRecurringFixedItem = form.budget_type === "fixed";
-  const budgetName = getBudgetName(form.kind, form.budget_type);
+  const isExpenseProgrammable = form.kind === "expense" && expenseRecurrenceMode === "programmable";
+  const isRecurringFixedItem = form.kind === "income"
+    ? form.budget_type === "fixed"
+    : !isExpenseProgrammable;
+  const budgetName = getBudgetName(form.kind, form.budget_type, isExpenseProgrammable);
 
   useEffect(() => {
     if (categorySelectValue === NEW_CATEGORY_VALUE) {
@@ -76,6 +82,10 @@ export function BudgetFormModal({
       setError("Selecione ou cadastre uma categoria.");
       return;
     }
+    if (isExpenseProgrammable && !form.end_month) {
+      setError("Informe a data de término para a despesa programável.");
+      return;
+    }
 
     setSubmitting(true);
     setError("");
@@ -85,7 +95,8 @@ export function BudgetFormModal({
           ...form,
           category_id: categoryId,
           category_name: categoryMode === "new" ? categoryName || null : null,
-          end_month: isRecurringFixedItem ? null : form.end_month,
+          budget_type: form.kind === "expense" ? "fixed" : form.budget_type,
+          end_month: form.kind === "income" || !isExpenseProgrammable ? null : form.end_month,
           due_day: form.has_due_date ? form.due_day : null
         },
         initial?.id
@@ -106,9 +117,36 @@ export function BudgetFormModal({
           <label>Tipo<select className="cf-select" value={form.kind} onChange={(e) => {
             const kind = e.target.value as BudgetPayload["kind"];
             setCategoryMode("existing");
-            setForm({ ...form, kind, category_id: "", category_name: "", end_month: form.budget_type === "fixed" ? null : form.end_month });
+            setExpenseRecurrenceMode("fixed");
+            setForm({ ...form, kind, category_id: "", category_name: "", end_month: null, budget_type: kind === "expense" ? "fixed" : form.budget_type });
           }}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
-          <label>Recorrencia<select className="cf-select" value={form.budget_type} onChange={(e) => setForm({ ...form, budget_type: e.target.value as BudgetPayload["budget_type"], end_month: e.target.value === "fixed" ? null : form.end_month })}><option value="fixed">Fixa</option><option value="variable">Variavel</option></select></label>
+          <label>Recorrência
+            <select
+              className="cf-select"
+              value={form.kind === "expense" ? expenseRecurrenceMode : form.budget_type}
+              onChange={(e) => {
+                if (form.kind === "expense") {
+                  const mode = e.target.value as "fixed" | "programmable";
+                  setExpenseRecurrenceMode(mode);
+                  setForm({ ...form, budget_type: "fixed", end_month: mode === "programmable" ? form.end_month : null });
+                  return;
+                }
+                setForm({ ...form, budget_type: e.target.value as BudgetPayload["budget_type"], end_month: e.target.value === "fixed" ? null : form.end_month });
+              }}
+            >
+              {form.kind === "expense" ? (
+                <>
+                  <option value="fixed">Fixa</option>
+                  <option value="programmable">Programável</option>
+                </>
+              ) : (
+                <>
+                  <option value="fixed">Fixa</option>
+                  <option value="variable">Variável</option>
+                </>
+              )}
+            </select>
+          </label>
         </div>
         <label>Categoria
           <select
@@ -140,10 +178,11 @@ export function BudgetFormModal({
         </label>
         <div className="cf-grid cf-three">
           <label>{form.kind === "income" ? "Valor previsto" : "Valor da despesa"}<CurrencyInput value={form.amount} onChange={(amount) => setForm({ ...form, amount })} required /></label>
-          <label>Comeca em<input className="cf-input" type="month" value={form.start_month ?? ""} onChange={(e) => setForm({ ...form, start_month: e.target.value || null })} /></label>
-          <label>Termina em<input className="cf-input" type="month" value={isRecurringFixedItem ? "" : form.end_month ?? ""} onChange={(e) => setForm({ ...form, end_month: e.target.value || null })} disabled={isRecurringFixedItem} /></label>
+          <label>Começa em<input className="cf-input" type="month" value={form.start_month ?? ""} onChange={(e) => setForm({ ...form, start_month: e.target.value || null })} /></label>
+          <label>Termina em<input className="cf-input" type="month" value={isRecurringFixedItem ? "" : form.end_month ?? ""} onChange={(e) => setForm({ ...form, end_month: e.target.value || null })} disabled={isRecurringFixedItem} required={isExpenseProgrammable} /></label>
         </div>
         {isRecurringFixedItem && <div className="cf-help-text">{form.kind === "income" ? "Receita fixa sem data final." : "Despesa fixa sem data final."}</div>}
+        {isExpenseProgrammable && <div className="cf-help-text">Despesa fixa com término futuro definido.</div>}
         <label><span><input type="checkbox" checked={form.has_due_date} onChange={(e) => setForm({ ...form, has_due_date: e.target.checked, due_day: e.target.checked ? form.due_day ?? 1 : null })} /> Tem vencimento</span></label>
         {form.has_due_date && (
           <label>{form.kind === "income" ? "Dia previsto para receber" : "Dia de vencimento"}
@@ -153,16 +192,24 @@ export function BudgetFormModal({
           </label>
         )}
         {error && <div className="cf-auth-error">{error}</div>}
-        <Button variant="primary" type="submit" disabled={submitting}>{form.kind === "income" ? (form.budget_type === "fixed" ? "Salvar receita prevista" : "Salvar receita programada") : (form.budget_type === "fixed" ? "Salvar conta fixa" : "Salvar despesa programada")}</Button>
+        <Button variant="primary" type="submit" disabled={submitting}>{getSubmitLabel(form.kind, isExpenseProgrammable, form.budget_type)}</Button>
       </form>
     </Modal>
   );
 }
 
-function getBudgetName(kind: BudgetPayload["kind"], budgetType: BudgetPayload["budget_type"]) {
+function getBudgetName(kind: BudgetPayload["kind"], budgetType: BudgetPayload["budget_type"], isExpenseProgrammable: boolean) {
   if (kind === "income") {
     return budgetType === "fixed" ? "receita prevista" : "receita programada";
   }
 
-  return budgetType === "fixed" ? "conta fixa" : "despesa programada";
+  return isExpenseProgrammable ? "despesa programável" : "conta fixa";
+}
+
+function getSubmitLabel(kind: BudgetPayload["kind"], isExpenseProgrammable: boolean, budgetType: BudgetPayload["budget_type"]) {
+  if (kind === "income") {
+    return budgetType === "fixed" ? "Salvar receita prevista" : "Salvar receita programada";
+  }
+
+  return isExpenseProgrammable ? "Salvar despesa programável" : "Salvar conta fixa";
 }

@@ -31,7 +31,7 @@ class BudgetUseCases:
         data = payload.model_dump()
         data["category_id"] = category.id
         data.pop("category_name", None)
-        if data["budget_type"] == "fixed":
+        if data["budget_type"] == "fixed" and data["kind"] == "income":
             data["end_month"] = None
         return serialize_budget(self.budgets.create(data))
 
@@ -40,7 +40,7 @@ class BudgetUseCases:
         data = payload.model_dump()
         data["category_id"] = category.id
         data.pop("category_name", None)
-        if data["budget_type"] == "fixed":
+        if data["budget_type"] == "fixed" and data["kind"] == "income":
             data["end_month"] = None
         return serialize_budget(self.budgets.update(budget_id, data))
 

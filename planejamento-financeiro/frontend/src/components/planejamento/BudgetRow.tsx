@@ -7,7 +7,7 @@ export function BudgetRow({ item, onEdit, onDelete }: { item: Budget; onEdit?: (
     <div className={`cf-row cf-row-${item.kind}`}>
       <div style={{ minWidth: 0 }}>
         <div className="cf-row-title">{item.description}</div>
-        <div className="cf-row-sub">{item.category_name} - {item.budget_type === "fixed" ? "Fixo" : "Variavel"}</div>
+        <div className="cf-row-sub">{item.category_name} - {getBudgetFrequencyLabel(item)}</div>
       </div>
       <div className="cf-actions">
         <Money value={item.amount} size="sm" tone={item.kind === "income" ? "income" : "expense"} />
@@ -15,4 +15,11 @@ export function BudgetRow({ item, onEdit, onDelete }: { item: Budget; onEdit?: (
       </div>
     </div>
   );
+}
+
+function getBudgetFrequencyLabel(item: Budget) {
+  if (item.kind === "expense" && item.budget_type === "fixed" && item.end_month) {
+    return "Programável";
+  }
+  return item.budget_type === "fixed" ? "Fixo" : "Variável";
 }
