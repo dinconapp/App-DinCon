@@ -1,4 +1,5 @@
 from app.application.common import model_to_dict
+from app.application.categories.use_cases import CategoryUseCases
 from app.domain.transactions.services import paid_totals
 
 
@@ -33,12 +34,20 @@ class TransactionUseCases:
         }
 
     def create(self, payload):
-        self._validate_links(payload)
-        return serialize_transaction(self.transactions.create(payload.model_dump()))
+        category = self._resolve_category(payload)
+        self._validate_links(payload, category)
+        data = payload.model_dump()
+        data["category_id"] = category.id if category else None
+        data.pop("category_name", None)
+        return serialize_transaction(self.transactions.create(data))
 
     def update(self, transaction_id: str, payload):
-        self._validate_links(payload)
-        return serialize_transaction(self.transactions.update(transaction_id, payload.model_dump()))
+        category = self._resolve_category(payload)
+        self._validate_links(payload, category)
+        data = payload.model_dump()
+        data["category_id"] = category.id if category else None
+        data.pop("category_name", None)
+        return serialize_transaction(self.transactions.update(transaction_id, data))
 
     def delete(self, transaction_id: str, user_id: str):
         try:
@@ -64,14 +73,19 @@ class TransactionUseCases:
             self.db.rollback()
             raise
 
-    def _validate_links(self, payload):
-        if payload.kind == "expense" and not payload.category_id:
+    def _validate_links(self, payload, category):
+        if payload.kind == "expense" and not category:
             raise ValueError("Categoria obrigatoria para gastos.")
-        if payload.category_id:
-            category = self.categories.get(payload.category_id)
-            if category.type != payload.kind:
-                raise ValueError("Categoria incompativel com a transacao.")
+        if category and category.type != payload.kind:
+            raise ValueError("Categoria incompativel com a transacao.")
         if payload.budget_id:
             budget = self.budgets.get(payload.budget_id)
             if budget.user_id != payload.user_id or budget.kind != payload.kind:
                 raise ValueError("Planejamento incompativel com a transacao.")
+
+    def _resolve_category(self, payload):
+        if payload.category_id:
+            return self.categories.get(payload.category_id)
+        if payload.category_name:
+            return CategoryUseCases(self.categories).resolve_or_create_category(payload.category_name, payload.kind)
+        return None

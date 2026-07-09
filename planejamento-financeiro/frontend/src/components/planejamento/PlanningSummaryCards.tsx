@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { AlertTriangle, CalendarClock, CheckCircle2, Clock3, Info, Plus, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { AlertTriangle, Ban, CalendarClock, CheckCircle2, Clock3, Info, Plus, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -28,12 +28,11 @@ type PaymentStatus = {
 export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId: string; monthKey: string; actionToken: number; onDone: (message: string, tone?: "success" | "error") => void }) {
   const { items, loading, save, remove, reload: reloadBudgets } = useBudgets(userId);
   const tx = useTransactions(userId, monthKey);
-  const { items: categories } = useCategories();
+  const { items: categories, reload: reloadCategories } = useCategories();
   const [editing, setEditing] = useState<Budget | null | undefined>(undefined);
   const [transactionEditing, setTransactionEditing] = useState<Transaction | null | undefined>(undefined);
   const [newBudgetKind, setNewBudgetKind] = useState<"income" | "expense">("income");
   const [newBudgetHasDueDate, setNewBudgetHasDueDate] = useState(false);
-  const [newBudgetTitle, setNewBudgetTitle] = useState("Nova receita prevista");
   const [fabOpen, setFabOpen] = useState(false);
   const [bills, setBills] = useState<{ pending: Bill[]; paid: Bill[] }>({ pending: [], paid: [] });
   const [billsLoading, setBillsLoading] = useState(true);
@@ -59,19 +58,21 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
 
   const groups = useMemo(() => ({
     fixed: items.filter((item) => item.kind === "expense" && item.budget_type === "fixed" && activeInMonth(item, monthKey)),
+    variable: items.filter((item) => item.kind === "expense" && item.budget_type === "variable" && activeInMonth(item, monthKey)),
     income: items.filter((item) => item.kind === "income" && activeInMonth(item, monthKey))
   }), [items, monthKey]);
-  const transactions = useMemo(() => tx.items.filter((item) => item.status !== "canceled"), [tx.items]);
-  const avulsoTransactions = useMemo(() => transactions.filter(isLooseTransaction), [transactions]);
-  const transactionExpenses = useMemo(() => avulsoTransactions.filter((item) => item.kind === "expense"), [avulsoTransactions]);
-  const transactionIncome = useMemo(() => avulsoTransactions.filter((item) => item.kind === "income"), [avulsoTransactions]);
+  const activeTransactions = useMemo(() => tx.items.filter((item) => item.status !== "canceled"), [tx.items]);
+  const avulsoTransactions = useMemo(() => tx.items.filter(isLooseTransaction), [tx.items]);
+  const calculationTransactions = useMemo(() => activeTransactions.filter(isLooseTransaction), [activeTransactions]);
+  const transactionExpenses = useMemo(() => calculationTransactions.filter((item) => item.kind === "expense"), [calculationTransactions]);
+  const transactionIncome = useMemo(() => calculationTransactions.filter((item) => item.kind === "income"), [calculationTransactions]);
   const paidBillIds = useMemo(() => new Set(bills.paid.map((item) => item.budget_id)), [bills.paid]);
-  const receivedIncomeIds = useMemo(() => new Set(transactions.filter((item) => item.kind === "income" && item.status === "paid" && item.budget_id).map((item) => item.budget_id as string)), [transactions]);
+  const receivedIncomeIds = useMemo(() => new Set(activeTransactions.filter((item) => item.kind === "income" && item.status === "paid" && item.budget_id).map((item) => item.budget_id as string)), [activeTransactions]);
   const pendingBillIds = useMemo(() => new Set(bills.pending.map((item) => item.budget_id)), [bills.pending]);
   const total = (rows: Budget[]) => rows.reduce((sum, item) => sum + item.amount, 0);
   const sumTx = (rows: Transaction[], status?: Transaction["status"]) => rows.reduce((sum, item) => sum + (status && item.status !== status ? 0 : item.amount), 0);
   const plannedIncome = total(groups.income);
-  const plannedExpense = total(groups.fixed) + sumTx(transactionExpenses);
+  const plannedExpense = total(groups.fixed) + total(groups.variable) + sumTx(transactionExpenses);
   const paidExpense = sumTx(transactionExpenses, "paid") + groups.fixed.filter((item) => paidBillIds.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
   const paidIncome = sumTx(transactionIncome, "paid") + groups.income.filter((item) => receivedIncomeIds.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
   const overdueItems = groups.fixed.filter((item) => !paidBillIds.has(item.id) && pendingBillIds.has(item.id) && getBudgetPaymentStatus(item, monthKey, paidBillIds).value === "overdue");
@@ -84,7 +85,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
     if (!window.confirm(`Remover "${item.description}"? Lançamentos vinculados também serão removidos.`)) return;
     try {
       await remove(item.id);
-      await Promise.all([tx.reload(), loadBills()]);
+      await Promise.all([tx.reload(), loadBills(), reloadCategories()]);
       onDone("Item removido");
     } catch {
       onDone("Não foi possível remover o item. Tente novamente.", "error");
@@ -125,7 +126,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
     try {
       await save(payload, id);
       await Promise.all([tx.reload(), loadBills()]);
-      onDone(payload.kind === "income" ? "Receita prevista salva com sucesso." : "Conta fixa salva com sucesso.");
+      onDone(payload.kind === "income" ? "Receita salva com sucesso." : "Despesa salva com sucesso.");
     } catch {
       onDone("Não foi possível salvar o item. Tente novamente.", "error");
     }
@@ -154,7 +155,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
         </div>
       </Card>
 
-      <div className="cf-grid cf-two">
+      <div className="cf-grid cf-three">
         <CashFlowSection title="Contas fixas" description="Compromissos recorrentes com vencimento no mês." count={groups.fixed.length}>
           {!groups.fixed.length && <EmptyState message="Nenhuma conta fixa cadastrada para este mês." />}
           {groups.fixed.map((item) => (
@@ -184,6 +185,20 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
             />
           ))}
         </CashFlowSection>
+
+        <CashFlowSection title="Despesas variáveis" description="Gastos planejados que não entram como contas fixas do mês." count={groups.variable.length}>
+          {!groups.variable.length && <EmptyState message="Nenhuma despesa variável cadastrada para este mês." />}
+          {groups.variable.map((item) => (
+            <CashFlowBudgetRow
+              key={item.id}
+              item={item}
+              monthKey={monthKey}
+              status={getBudgetPaymentStatus(item, monthKey, paidBillIds)}
+              onEdit={() => setEditing(item)}
+              onDelete={() => deleteItem(item)}
+            />
+          ))}
+        </CashFlowSection>
       </div>
 
       <div className="cf-grid">
@@ -195,11 +210,11 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
       <div className="cf-fab-wrap">
         {fabOpen && (
           <div className="cf-fab-menu">
-            <button type="button" onClick={() => { setNewBudgetKind("income"); setNewBudgetHasDueDate(false); setNewBudgetTitle("Nova receita prevista"); setEditing(null); setFabOpen(false); }}>
+            <button type="button" onClick={() => { setNewBudgetKind("income"); setNewBudgetHasDueDate(false); setEditing(null); setFabOpen(false); }}>
               <span>Nova receita prevista</span>
               <InfoTooltip text="Use para salário, aluguel recebido ou outra receita esperada no mês." />
             </button>
-            <button type="button" onClick={() => { setNewBudgetKind("expense"); setNewBudgetHasDueDate(true); setNewBudgetTitle("Nova conta fixa"); setEditing(null); setFabOpen(false); }}>
+            <button type="button" onClick={() => { setNewBudgetKind("expense"); setNewBudgetHasDueDate(true); setEditing(null); setFabOpen(false); }}>
               <span>Nova conta fixa</span>
               <InfoTooltip text="Use para compromissos recorrentes, como aluguel, energia, internet e cartão." />
             </button>
@@ -213,7 +228,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
           <Plus size={30} strokeWidth={2.6} />
         </button>
       </div>
-      {editing !== undefined && <BudgetFormModal userId={userId} monthKey={monthKey} initial={editing} defaultKind={newBudgetKind} defaultBudgetType="fixed" defaultHasDueDate={newBudgetHasDueDate} title={editing ? undefined : newBudgetTitle} categories={categories} onClose={() => setEditing(undefined)} onSave={handleSave} />}
+      {editing !== undefined && <BudgetFormModal userId={userId} monthKey={monthKey} initial={editing} defaultKind={newBudgetKind} defaultBudgetType="fixed" defaultHasDueDate={newBudgetHasDueDate} categories={categories} onClose={() => setEditing(undefined)} onSave={handleSave} />}
       {transactionEditing !== undefined && (
         <TransactionFormModal
           userId={userId}
@@ -223,7 +238,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
           onClose={() => setTransactionEditing(undefined)}
           onSave={async (payload, id) => {
             await tx.save(payload, id);
-            await loadBills();
+            await Promise.all([loadBills(), reloadCategories()]);
             onDone("Lançamento salvo com sucesso.");
           }}
         />
@@ -371,14 +386,15 @@ function CashFlowBudgetRow({
 }
 
 function CashFlowTransactionRow({ item }: { item: Transaction }) {
-  const isOverdue = item.status === "pending" && new Date(`${item.transaction_date}T23:59:59`).getTime() < Date.now();
-  const status: PaymentStatus = item.status === "paid"
-    ? item.kind === "income"
-      ? { value: "received", label: "Recebido", detail: "Receita realizada" }
-      : { value: "paid", label: "Pago", detail: "Lançamento realizado" }
-    : isOverdue
-      ? { value: "overdue", label: "Atrasado", detail: "Lançamento pendente com data vencida" }
-      : { value: "pending", label: "Pendente", detail: "Lançamento em aberto" };
+  const status: PaymentStatus = item.status === "canceled"
+    ? { value: "canceled", label: "Cancelado", detail: "Lançamento cancelado" }
+    : item.status === "paid"
+      ? item.kind === "income"
+        ? { value: "received", label: "Recebido", detail: "Receita realizada" }
+        : { value: "paid", label: "Pago", detail: "Lançamento realizado" }
+      : item.status === "pending" && new Date(`${item.transaction_date}T23:59:59`).getTime() < Date.now()
+        ? { value: "overdue", label: "Atrasado", detail: "Lançamento pendente com data vencida" }
+        : { value: "pending", label: "Pendente", detail: "Lançamento em aberto" };
 
   return (
     <div className={`cf-row cf-row-${item.kind} cf-cashflow-row`}>
@@ -386,6 +402,7 @@ function CashFlowTransactionRow({ item }: { item: Transaction }) {
         <div className={`cf-dot cf-dot-${status.value}`}>
           {status.value === "paid" && <CheckCircle2 size={17} />}
           {status.value === "received" && <CheckCircle2 size={17} />}
+          {status.value === "canceled" && <Ban size={17} />}
           {status.value === "overdue" && <AlertTriangle size={17} />}
           {status.value === "pending" && <Clock3 size={17} />}
         </div>
@@ -402,6 +419,3 @@ function CashFlowTransactionRow({ item }: { item: Transaction }) {
     </div>
   );
 }
-
-
-

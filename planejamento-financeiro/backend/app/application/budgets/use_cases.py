@@ -1,4 +1,5 @@
 from app.application.common import model_to_dict
+from app.application.categories.use_cases import CategoryUseCases
 
 
 BUDGET_FIELDS = [
@@ -26,22 +27,34 @@ class BudgetUseCases:
         return [serialize_budget(budget) for budget in self.budgets.list_by_user(user_id)]
 
     def create(self, payload):
-        category = self.categories.get(payload.category_id)
-        if category.type != payload.kind:
-            raise ValueError("Categoria incompativel com o tipo do item.")
+        category = self._resolve_category(payload, allow_none=False)
         data = payload.model_dump()
+        data["category_id"] = category.id
+        data.pop("category_name", None)
         if data["budget_type"] == "fixed":
             data["end_month"] = None
         return serialize_budget(self.budgets.create(data))
 
     def update(self, budget_id: str, payload):
-        category = self.categories.get(payload.category_id)
-        if category.type != payload.kind:
-            raise ValueError("Categoria incompativel com o tipo do item.")
+        category = self._resolve_category(payload, allow_none=False)
         data = payload.model_dump()
+        data["category_id"] = category.id
+        data.pop("category_name", None)
         if data["budget_type"] == "fixed":
             data["end_month"] = None
         return serialize_budget(self.budgets.update(budget_id, data))
+
+    def _resolve_category(self, payload, allow_none: bool):
+        category = None
+        if payload.category_id:
+            category = self.categories.get(payload.category_id)
+        elif payload.category_name:
+            category = CategoryUseCases(self.categories).resolve_or_create_category(payload.category_name, payload.kind)
+        if category and category.type != payload.kind:
+            raise ValueError("Categoria incompativel com o tipo do item.")
+        if not allow_none and not category:
+            raise ValueError("Categoria obrigatoria.")
+        return category
 
     def delete(self, budget_id: str, user_id: str):
         if not self.transactions:

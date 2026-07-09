@@ -6,8 +6,13 @@ import type { Category } from "@/types/category";
 
 export function useCategories() {
   const [items, setItems] = useState<Category[]>([]);
+
+  async function reload() {
+    setItems(await getCategories());
+  }
+
   useEffect(() => {
-    void getCategories().then(setItems);
+    void reload();
   }, []);
-  return { items, income: items.filter((item) => item.type === "income"), expense: items.filter((item) => item.type === "expense") };
+  return { items, income: items.filter((item) => item.type === "income"), expense: items.filter((item) => item.type === "expense"), reload };
 }

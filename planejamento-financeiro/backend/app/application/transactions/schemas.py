@@ -6,6 +6,7 @@ class TransactionBase(BaseModel):
     user_id: str
     budget_id: str | None = None
     category_id: str | None = None
+    category_name: str | None = Field(default=None, min_length=1, max_length=180)
     kind: str = Field(pattern="^(income|expense)$")
     title: str = Field(min_length=1, max_length=180)
     amount: float = Field(gt=0)

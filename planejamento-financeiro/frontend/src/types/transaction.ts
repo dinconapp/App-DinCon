@@ -16,9 +16,12 @@ export type Transaction = {
   budget_description?: string | null;
   budget_type?: string | null;
   is_fixed_bill: boolean;
+  category_name?: string | null;
 };
 
-export type TransactionPayload = Omit<Transaction, "id" | "category_name" | "category_color" | "budget_description" | "budget_type" | "is_fixed_bill">;
+export type TransactionPayload = Omit<Transaction, "id" | "category_name" | "category_color" | "budget_description" | "budget_type" | "is_fixed_bill"> & {
+  category_name?: string | null;
+};
 
 export type TransactionListResponse = {
   items: Transaction[];

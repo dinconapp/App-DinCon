@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +15,7 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
     user_id: userId,
     budget_id: initial?.budget_id ?? null,
     category_id: initial?.category_id ?? "",
+    category_name: initial?.category_name ?? "",
     kind: initial?.kind ?? "expense",
     title: initial?.title ?? "",
     amount: initial?.amount ?? 0,
@@ -25,28 +26,35 @@ export function TransactionFormModal({ userId, monthKey, categories, initial, on
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const categoryId = form.kind === "income" ? form.category_id || null : form.category_id || availableCategories[0]?.id;
+    const categoryName = form.category_name?.trim() || "";
+    const categoryId = categoryName ? null : (form.category_id || null);
+    if (form.kind === "expense" && !categoryId && !categoryName) {
+      setError("Selecione ou cadastre uma categoria para o gasto.");
+      return;
+    }
+
     setSubmitting(true);
     setError("");
     try {
-      await onSave({ ...form, category_id: categoryId }, initial?.id);
+      await onSave({ ...form, category_id: categoryId, category_name: categoryName || null }, initial?.id);
       onClose();
     } catch {
-      setError("Não foi possível salvar o lançamento. Tente novamente.");
+      setError("Nao foi possivel salvar o lancamento. Tente novamente.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Modal title={initial ? "Editar lançamento" : "Novo lançamento"} onClose={onClose}>
+    <Modal title={initial ? "Editar lancamento" : "Novo lancamento"} onClose={onClose}>
       <form className="cf-form" onSubmit={submit}>
-        <label>Descrição<input className="cf-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required /></label>
+        <label>Descricao<input className="cf-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required /></label>
         <div className="cf-grid cf-two">
-          <label>Tipo<select className="cf-select" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as TransactionPayload["kind"], category_id: "" })}><option value="expense">Gasto</option><option value="income">Entrada</option></select></label>
+          <label>Tipo<select className="cf-select" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as TransactionPayload["kind"], category_id: "", category_name: "" })}><option value="expense">Gasto</option><option value="income">Entrada</option></select></label>
           <label>Status<select className="cf-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as TransactionPayload["status"] })}><option value="paid">Pago</option><option value="pending">Pendente</option><option value="canceled">Cancelado</option></select></label>
         </div>
-        <label>Categoria<select className="cf-select" value={form.category_id ?? ""} onChange={(e) => setForm({ ...form, category_id: e.target.value || null })} required={form.kind === "expense"}><option value="">{form.kind === "income" ? "Sem categoria" : "Selecione"}</option>{availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+        <label>Categoria existente<select className="cf-select" value={form.category_id ?? ""} onChange={(e) => setForm({ ...form, category_id: e.target.value, category_name: e.target.value ? "" : form.category_name })}><option value="">{form.kind === "income" ? "Sem categoria" : "Selecione"}</option>{availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+        <label>Ou crie uma nova categoria<input className="cf-input" value={form.category_name ?? ""} onChange={(e) => setForm({ ...form, category_name: e.target.value, category_id: e.target.value.trim() ? "" : form.category_id })} placeholder="Ex: Mercado, Transporte, Freelance" /></label>
         <div className="cf-grid cf-two">
           <label>Valor<CurrencyInput value={form.amount} onChange={(amount) => setForm({ ...form, amount })} required /></label>
           <label>Data<DateInput value={form.transaction_date} onChange={(transaction_date) => setForm({ ...form, transaction_date })} required /></label>

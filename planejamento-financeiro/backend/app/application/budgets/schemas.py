@@ -5,7 +5,8 @@ class BudgetBase(BaseModel):
     user_id: str
     description: str = Field(min_length=1, max_length=180)
     kind: str = Field(pattern="^(income|expense)$")
-    category_id: str
+    category_id: str | None = None
+    category_name: str | None = Field(default=None, min_length=1, max_length=180)
     budget_type: str = Field(pattern="^(fixed|variable)$")
     amount: float = Field(gt=0)
     start_month: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}$")
@@ -17,6 +18,8 @@ class BudgetBase(BaseModel):
     def validate_months(self):
         if self.start_month and self.end_month and self.end_month < self.start_month:
             raise ValueError("end_month nao pode ser menor que start_month.")
+        if not self.category_id and not self.category_name:
+            raise ValueError("Categoria obrigatoria.")
         if self.has_due_date and not self.due_day:
             raise ValueError("due_day e obrigatorio quando has_due_date for true.")
         return self
