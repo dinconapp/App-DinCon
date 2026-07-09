@@ -369,8 +369,8 @@ function CashFlowBudgetRow({
 }) {
   const dueDate = item.has_due_date ? dueDateFor(monthKey, item.due_day) : null;
   const canToggle = onTogglePaid && (
-    (item.kind === "expense" && item.budget_type === "fixed" && item.has_due_date) ||
-    item.kind === "income"
+    item.kind === "income" ||
+    item.kind === "expense"
   );
 
   return (
