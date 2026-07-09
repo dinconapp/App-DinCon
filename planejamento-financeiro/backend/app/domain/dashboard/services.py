@@ -101,18 +101,30 @@ def _budget_progress(budgets, transactions, month_key, kind, budget_type):
         if budget_type and budget.budget_type != budget_type:
             continue
         realized = sum((tx.amount for tx in transactions if _is_paid(tx) and tx.budget_id == budget.id), Decimal("0"))
-        rows.append(_budget_line(budget) | {"realized": float(realized), "budget_type": budget.budget_type})
+        rows.append(_budget_line(budget) | {
+            "realized": float(realized),
+            "budget_type": budget.budget_type,
+            "budget_id": budget.id,
+            "source_type": "budget",
+            "source_id": budget.id,
+        })
     return rows
 
 
 def _variable_expenses(budgets, transactions, month_key):
     rows = _budget_progress(budgets, transactions, month_key, "expense", "variable")
+    seen = {("budget", row["id"]) for row in rows}
 
     for tx in transactions:
         if not _is_variable_unplanned_expense(tx):
             continue
+        row_id = f"tx-{tx.id}"
+        source_key = ("transaction", tx.id)
+        if source_key in seen:
+            continue
+        seen.add(source_key)
         rows.append({
-            "id": f"tx-{tx.id}",
+            "id": row_id,
             "description": tx.title,
             "amount": float(tx.amount),
             "realized": float(tx.amount),
@@ -122,6 +134,9 @@ def _variable_expenses(budgets, transactions, month_key):
             "color": (tx.category.color if tx.category else None) or "#9AA3B2",
             "due_day": None,
             "budget_type": "transaction",
+            "budget_id": tx.budget_id,
+            "source_type": "transaction",
+            "source_id": tx.id,
         })
     return rows
 

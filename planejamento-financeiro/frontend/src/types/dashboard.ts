@@ -8,6 +8,9 @@ export type DashboardLine = {
   due_day?: number;
   paid?: boolean;
   budget_type?: string;
+  budget_id?: string | null;
+  source_type?: "budget" | "transaction" | string;
+  source_id?: string | null;
 };
 
 export type Dashboard = {
