@@ -3,6 +3,7 @@ import { OriginBadge } from "@/components/ui/OriginBadge";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { StatusBadge, type StatusKey } from "@/components/ui/StatusBadge";
 import type { Transaction } from "@/types/transaction";
+import { truncateText } from "@/utils/text";
 
 function formatDate(value: string) {
   const [year, month, day] = value.split("-");
@@ -19,8 +20,8 @@ export function TransactionRow({ item, onEdit, onDelete }: { item: Transaction; 
   return (
     <div className={`cf-row cf-row-${item.kind}`}>
       <div style={{ minWidth: 0 }}>
-        <div className="cf-row-title">{item.title}</div>
-        <div className="cf-row-sub">{formatDate(item.transaction_date)} - {item.category_name ?? "Sem categoria"}</div>
+        <div className="cf-row-title" title={item.title}>{truncateText(item.title)}</div>
+        <div className="cf-row-sub" title={`${formatDate(item.transaction_date)} - ${item.category_name ?? "Sem categoria"}`}>{truncateText(`${formatDate(item.transaction_date)} - ${item.category_name ?? "Sem categoria"}`)}</div>
         <div className="cf-badge-line">
           <StatusBadge status={statusFor(item)} />
           <OriginBadge transaction={item} />

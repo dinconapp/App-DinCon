@@ -16,6 +16,7 @@ import { getBills, payBill, receiveIncome, unpayBill, unreceiveIncome, type Bill
 import type { Budget } from "@/types/budget";
 import type { Transaction } from "@/types/transaction";
 import { isLooseTransaction } from "@/utils/financial-classification";
+import { truncateText } from "@/utils/text";
 import { TransactionFormModal } from "@/components/transacoes/TransactionFormModal";
 import { BudgetFormModal } from "./BudgetFormModal";
 
@@ -421,10 +422,9 @@ function CashFlowBudgetRow({
           {status.value === "planned" && <CalendarClock size={17} />}
         </div>
         <div style={{ minWidth: 0 }}>
-          <div className="cf-row-title">{item.description}</div>
-          <div className="cf-row-sub">
-            {item.category_name ?? "Sem categoria"} - {getBudgetFrequencyLabel(item)}
-            {dueDate ? ` - venc. ${formatDateFromDate(dueDate)}` : ""}
+          <div className="cf-row-title" title={item.description}>{truncateText(item.description)}</div>
+          <div className="cf-row-sub" title={`${item.category_name ?? "Sem categoria"} - ${getBudgetFrequencyLabel(item)}${dueDate ? ` - venc. ${formatDateFromDate(dueDate)}` : ""}`}>
+            {truncateText(`${item.category_name ?? "Sem categoria"} - ${getBudgetFrequencyLabel(item)}${dueDate ? ` - venc. ${formatDateFromDate(dueDate)}` : ""}`)}
           </div>
           <div className="cf-row-sub">{status.detail}</div>
         </div>
@@ -463,8 +463,8 @@ function CashFlowTransactionRow({ item }: { item: Transaction }) {
           {status.value === "pending" && <Clock3 size={17} />}
         </div>
         <div style={{ minWidth: 0 }}>
-          <div className="cf-row-title">{item.title}</div>
-          <div className="cf-row-sub">{formatDate(item.transaction_date)} - {item.category_name ?? "Sem categoria"} - lançamento avulso</div>
+          <div className="cf-row-title" title={item.title}>{truncateText(item.title)}</div>
+          <div className="cf-row-sub" title={`${formatDate(item.transaction_date)} - ${item.category_name ?? "Sem categoria"} - lançamento avulso`}>{truncateText(`${formatDate(item.transaction_date)} - ${item.category_name ?? "Sem categoria"} - lançamento avulso`)}</div>
           <div className="cf-row-sub">{status.detail}</div>
         </div>
       </div>
