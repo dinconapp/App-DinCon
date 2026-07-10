@@ -81,7 +81,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   const sumTx = (rows: Transaction[], status?: Transaction["status"]) => rows.reduce((sum, item) => sum + (status && item.status !== status ? 0 : item.amount), 0);
   const plannedIncome = total(plannedIncomeItems);
   const receivedIncome = total(receivedIncomeItems) + sumTx(transactionIncome, "paid");
-  const plannedExpense = total(expenseBudgetItems) + sumTx(transactionExpenses);
+  const plannedExpense = total(expenseBudgetItems);
   const paidExpense = sumTx(transactionExpenses, "paid") + groups.fixed.filter((item) => paidBillIds.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
   const overdueExpense = overdueExpenseBudgetItems.reduce((sum, item) => sum + item.amount, 0) + overdueTransactionExpenses.reduce((sum, item) => sum + item.amount, 0);
   const pendingExpense = pendingExpenseBudgetItems.reduce((sum, item) => sum + item.amount, 0) + pendingTransactionExpenses.reduce((sum, item) => sum + item.amount, 0);
@@ -177,25 +177,23 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   if (loading || tx.loading || billsLoading) return <div className="cf-card">Carregando fluxo de caixa...</div>;
   return (
     <div className="cf-grid">
-      <Card>
-        <SectionHeader
-          title="Resumo do mês"
-          description="Previsto é o que foi cadastrado para o mês. Realizado é o que já foi lançado, pago ou recebido."
-        />
-        <div className="cf-grid cf-kpis">
-          <CashFlowKpi title="Receitas previstas" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${plannedIncomeItems.length} registros`} />
-          <CashFlowKpi title="Receitas recebidas" value={receivedIncome} tone="income" icon={<CheckCircle2 size={19} />} detail={`${receivedIncomeItems.length} registros`} />
-          <CashFlowKpi title="Contas pendentes" value={pendingExpense} tone="expense" icon={<Clock3 size={19} />} detail="Saídas em aberto" />
-          <CashFlowKpi title="Saldo previsto" value={projectedBalance} tone={projectedBalance >= 0 ? "income" : "expense"} icon={<Wallet size={19} />} detail={`Realizado: ${formatCurrency(realizedBalance)}`} />
+      <Card title="Previsão Mês">
+        <p className="cf-panel-description">Receita prevista, despesa prevista e saldo previsto para o mês selecionado.</p>
+        <div className="cf-grid cf-summary-grid cf-summary-grid-3">
+          <CashFlowKpi title="Receita Prevista" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${plannedIncomeItems.length} registros`} />
+          <CashFlowKpi title="Despesa Prevista" value={plannedExpense} tone="expense" icon={<TrendingDown size={19} />} detail={`${expenseBudgetItems.length} registros`} />
+          <CashFlowKpi title="Saldo Previsto" value={projectedBalance} tone={projectedBalance >= 0 ? "income" : "expense"} icon={<Wallet size={19} />} detail={`Receita prevista menos despesa prevista`} />
         </div>
       </Card>
 
-      <Card title="Dashboard do fluxo" meta={<StatusLegend />}>
-        <div className="cf-cashflow-dashboard">
+      <Card title="Resumo do mês" meta={<StatusLegend />}>
+        <p className="cf-panel-description">Receita recebida, pago, pendente, atrasado e saldo do mês já realizado.</p>
+        <div className="cf-grid cf-summary-grid cf-summary-grid-5">
+          <CashFlowKpi title="Receita Recebida" value={receivedIncome} tone="income" icon={<CheckCircle2 size={19} />} detail={`${receivedIncomeItems.length} registros`} />
           <StatusMetric label="Pago" value={paidExpense} helper="Saídas realizadas no mês" tone="paid" />
           <StatusMetric label="Pendente" value={pendingExpense} helper="Saídas ainda em aberto" tone="pending" />
           <StatusMetric label="Atrasado" value={overdueExpense} helper="Vencimentos em atraso" tone="overdue" />
-          <StatusMetric label="Recebido" value={receivedIncome} helper="Receitas realizadas" tone="income" />
+          <StatusMetric label="Saldo Mês" value={realizedBalance} helper="Receita recebida menos despesas pagas" tone={realizedBalance >= 0 ? "income" : "expense"} />
         </div>
       </Card>
 
@@ -344,11 +342,11 @@ function CashFlowKpi({ title, value, tone, icon, detail }: { title: string; valu
   return (
     <Card className={`cf-cashflow-kpi cf-cashflow-kpi-${tone}`}>
       <div className="cf-kpi-top">
-        <span>{title}</span>
+        <span className="cf-kpi-title">{title}</span>
         {icon}
       </div>
       <div className="cf-kpi-val"><Money value={value} size="md" tone={tone} /></div>
-      <span className="cf-row-sub">{detail}</span>
+      <span className="cf-row-sub cf-kpi-detail">{detail}</span>
     </Card>
   );
 }
@@ -372,12 +370,12 @@ function StatusLegend() {
   );
 }
 
-function StatusMetric({ label, value, helper, tone }: { label: string; value: number; helper: string; tone: "paid" | "pending" | "overdue" | "income" }) {
+function StatusMetric({ label, value, helper, tone }: { label: string; value: number; helper: string; tone: "paid" | "pending" | "overdue" | "income" | "expense" }) {
   return (
     <div className={`cf-status-metric ${tone}`}>
-      <span>{label}</span>
+      <span className="cf-status-label">{label}</span>
       <strong>{formatCurrency(value)}</strong>
-      <small>{helper}</small>
+      <small className="cf-status-helper">{helper}</small>
     </div>
   );
 }
