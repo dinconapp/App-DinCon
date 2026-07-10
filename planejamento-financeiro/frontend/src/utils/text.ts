@@ -1,4 +1,4 @@
-export function truncateText(value: string | null | undefined, maxLength = 40): string {
+export function truncateText(value: string | null | undefined, maxLength = 25): string {
   if (!value) return "";
   const text = String(value);
   if (text.length <= maxLength) return text;
