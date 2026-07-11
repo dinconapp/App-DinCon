@@ -70,19 +70,18 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   const paidBillIds = useMemo(() => new Set(bills.paid.map((item) => item.budget_id)), [bills.paid]);
   const paidExpenseBudgetIds = useMemo(() => new Set(activeTransactions.filter((item) => item.kind === "expense" && item.status === "paid" && item.budget_id).map((item) => item.budget_id as string)), [activeTransactions]);
   const receivedIncomeIds = useMemo(() => new Set(activeTransactions.filter((item) => item.kind === "income" && item.status === "paid" && item.budget_id).map((item) => item.budget_id as string)), [activeTransactions]);
-  const plannedIncomeItems = useMemo(() => groups.income.filter((item) => !receivedIncomeIds.has(item.id)), [groups.income, receivedIncomeIds]);
-  const receivedIncomeItems = useMemo(() => groups.income.filter((item) => receivedIncomeIds.has(item.id)), [groups.income, receivedIncomeIds]);
   const expenseBudgetItems = useMemo(() => [...groups.fixed, ...groups.variable], [groups.fixed, groups.variable]);
+  const receivedIncomeItems = useMemo(() => groups.income.filter((item) => receivedIncomeIds.has(item.id)), [groups.income, receivedIncomeIds]);
   const openExpenseBudgetItems = useMemo(() => expenseBudgetItems.filter((item) => !paidBillIds.has(item.id)), [expenseBudgetItems, paidBillIds]);
   const overdueExpenseBudgetItems = useMemo(() => openExpenseBudgetItems.filter((item) => getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds).value === "overdue"), [openExpenseBudgetItems, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds]);
   const pendingExpenseBudgetItems = useMemo(() => openExpenseBudgetItems.filter((item) => getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds).value === "pending"), [openExpenseBudgetItems, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds]);
   const overdueTransactionExpenses = useMemo(() => transactionExpenses.filter((item) => isOverdueTransaction(item)), [transactionExpenses]);
   const pendingTransactionExpenses = useMemo(() => transactionExpenses.filter((item) => item.status === "pending" && !isOverdueTransaction(item)), [transactionExpenses]);
-  const total = (rows: Budget[]) => rows.reduce((sum, item) => sum + item.amount, 0);
+  const totalBudget = (rows: Budget[]) => rows.reduce((sum, item) => sum + item.amount, 0);
   const sumTx = (rows: Transaction[], status?: Transaction["status"]) => rows.reduce((sum, item) => sum + (status && item.status !== status ? 0 : item.amount), 0);
-  const plannedIncome = total(plannedIncomeItems);
-  const receivedIncome = total(receivedIncomeItems) + sumTx(transactionIncome, "paid");
-  const plannedExpense = total(expenseBudgetItems);
+  const plannedIncome = totalBudget(groups.income) + sumTx(transactionIncome);
+  const receivedIncome = totalBudget(receivedIncomeItems) + sumTx(transactionIncome, "paid");
+  const plannedExpense = totalBudget(expenseBudgetItems) + sumTx(transactionExpenses);
   const paidExpense = sumTx(transactionExpenses, "paid") + groups.fixed.filter((item) => paidBillIds.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
   const overdueExpense = overdueExpenseBudgetItems.reduce((sum, item) => sum + item.amount, 0) + overdueTransactionExpenses.reduce((sum, item) => sum + item.amount, 0);
   const pendingExpense = pendingExpenseBudgetItems.reduce((sum, item) => sum + item.amount, 0) + pendingTransactionExpenses.reduce((sum, item) => sum + item.amount, 0);
@@ -181,8 +180,8 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
       <Card title="Previsão Mês">
         <p className="cf-panel-description">Receita prevista, despesa prevista e saldo previsto para o mês selecionado.</p>
         <div className="cf-grid cf-summary-grid cf-summary-grid-3">
-          <CashFlowKpi title="Receita Prevista" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${plannedIncomeItems.length} registros`} />
-          <CashFlowKpi title="Despesa Prevista" value={plannedExpense} tone="expense" icon={<TrendingDown size={19} />} detail={`${expenseBudgetItems.length} registros`} />
+          <CashFlowKpi title="Receita Prevista" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${groups.income.length + transactionIncome.length} registros`} />
+          <CashFlowKpi title="Despesa Prevista" value={plannedExpense} tone="expense" icon={<TrendingDown size={19} />} detail={`${expenseBudgetItems.length + transactionExpenses.length} registros`} />
           <CashFlowKpi title="Saldo Previsto" value={projectedBalance} tone={projectedBalance >= 0 ? "income" : "expense"} icon={<Wallet size={19} />} detail={`Receita prevista menos despesa prevista`} />
         </div>
       </Card>
