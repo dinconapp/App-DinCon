@@ -79,6 +79,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   const pendingTransactionExpenses = useMemo(() => transactionExpenses.filter((item) => item.status === "pending" && !isOverdueTransaction(item)), [transactionExpenses]);
   const totalBudget = (rows: Budget[]) => rows.reduce((sum, item) => sum + item.amount, 0);
   const sumTx = (rows: Transaction[], status?: Transaction["status"]) => rows.reduce((sum, item) => sum + (status && item.status !== status ? 0 : item.amount), 0);
+  // A previsão do mês mantém as receitas cadastradas, mesmo quando já foram recebidas.
   const plannedIncome = totalBudget(groups.income) + sumTx(transactionIncome);
   const receivedIncome = totalBudget(receivedIncomeItems) + sumTx(transactionIncome, "paid");
   const plannedExpense = totalBudget(expenseBudgetItems) + sumTx(transactionExpenses);
@@ -186,13 +187,13 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
         </div>
       </Card>
 
-      <Card title="Resumo do mês" meta={<StatusLegend />}>
-        <p className="cf-panel-description">Receita recebida, pago, pendente, atrasado e saldo do mês já realizado.</p>
+      <Card title="Resumo do mês">
+        <p className="cf-panel-description">Receita recebida e saldo do mês já realizado.</p>
         <div className="cf-grid cf-summary-grid cf-summary-grid-5">
           <CashFlowKpi title="Receita Recebida" value={receivedIncome} tone="income" icon={<CheckCircle2 size={19} />} detail={`${receivedIncomeItems.length} registros`} />
-          <StatusMetric label="Pago" value={paidExpense} helper="Saídas realizadas no mês" tone="paid" />
-          <StatusMetric label="Pendente" value={pendingExpense} helper="Saídas ainda em aberto" tone="pending" />
-          <StatusMetric label="Atrasado" value={overdueExpense} helper="Vencimentos em atraso" tone="overdue" />
+          <StatusMetric label="Saídas pagas" value={paidExpense} helper="Saídas realizadas no mês" tone="paid" />
+          <StatusMetric label="Saídas em aberto" value={pendingExpense} helper="Saídas ainda em aberto" tone="pending" />
+          <StatusMetric label="Saídas vencidas" value={overdueExpense} helper="Vencimentos em atraso" tone="overdue" />
           <StatusMetric label="Saldo Mês" value={realizedBalance} helper="Receita recebida menos despesas pagas" tone={realizedBalance >= 0 ? "income" : "expense"} />
         </div>
       </Card>
@@ -357,16 +358,6 @@ function InfoTooltip({ text }: { text: string }) {
       <Info size={15} />
       <span role="tooltip">{text}</span>
     </span>
-  );
-}
-
-function StatusLegend() {
-  return (
-    <div className="cf-status-legend">
-      <StatusBadge status="paid" />
-      <StatusBadge status="pending" />
-      <StatusBadge status="overdue" />
-    </div>
   );
 }
 

@@ -242,7 +242,6 @@
 .cf-status-metric.overdue strong { color: #FF6B7A; }
 .cf-status-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cf-status-helper { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cf-status-legend { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .cf-status-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 25px; border-radius: 999px; padding: 0 9px; font-size: 12px; font-weight: 800; white-space: nowrap; border: 1px solid rgba(255,255,255,.1); }
 .cf-status-planned { color: #AFC7FF; background: rgba(117,156,255,.1); border-color: rgba(117,156,255,.24); }
 .cf-status-pending { color: #F4C25A; background: rgba(244,194,90,.1); border-color: rgba(244,194,90,.24); }
