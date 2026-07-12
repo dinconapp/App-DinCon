@@ -67,6 +67,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   const calculationTransactions = useMemo(() => activeTransactions.filter(isLooseTransaction), [activeTransactions]);
   const transactionExpenses = useMemo(() => calculationTransactions.filter((item) => item.kind === "expense"), [calculationTransactions]);
   const transactionIncome = useMemo(() => calculationTransactions.filter((item) => item.kind === "income"), [calculationTransactions]);
+  const looseIncomeTransactions = useMemo(() => transactionIncome.filter((item) => !item.budget_id), [transactionIncome]);
   const paidBillIds = useMemo(() => new Set(bills.paid.map((item) => item.budget_id)), [bills.paid]);
   const paidExpenseBudgetIds = useMemo(() => new Set(activeTransactions.filter((item) => item.kind === "expense" && item.status === "paid" && item.budget_id).map((item) => item.budget_id as string)), [activeTransactions]);
   const receivedIncomeIds = useMemo(() => new Set(activeTransactions.filter((item) => item.kind === "income" && item.status === "paid" && item.budget_id).map((item) => item.budget_id as string)), [activeTransactions]);
@@ -79,9 +80,9 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   const pendingTransactionExpenses = useMemo(() => transactionExpenses.filter((item) => item.status === "pending" && !isOverdueTransaction(item)), [transactionExpenses]);
   const totalBudget = (rows: Budget[]) => rows.reduce((sum, item) => sum + item.amount, 0);
   const sumTx = (rows: Transaction[], status?: Transaction["status"]) => rows.reduce((sum, item) => sum + (status && item.status !== status ? 0 : item.amount), 0);
-  // A previsão do mês mantém as receitas cadastradas, mesmo quando já foram recebidas.
-  const plannedIncome = totalBudget(groups.income) + sumTx(transactionIncome);
-  const receivedIncome = totalBudget(receivedIncomeItems) + sumTx(transactionIncome, "paid");
+  // A previsão do mês considera o budget da receita uma única vez.
+  const plannedIncome = totalBudget(groups.income) + sumTx(looseIncomeTransactions);
+  const receivedIncome = totalBudget(receivedIncomeItems) + sumTx(looseIncomeTransactions, "paid");
   const plannedExpense = totalBudget(expenseBudgetItems) + sumTx(transactionExpenses);
   const paidExpense = sumTx(transactionExpenses, "paid") + groups.fixed.filter((item) => paidBillIds.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
   const overdueExpense = overdueExpenseBudgetItems.reduce((sum, item) => sum + item.amount, 0) + overdueTransactionExpenses.reduce((sum, item) => sum + item.amount, 0);
@@ -181,7 +182,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
       <Card title="Previsão Mês">
         <p className="cf-panel-description">Receita prevista, despesa prevista e saldo previsto para o mês selecionado.</p>
         <div className="cf-grid cf-summary-grid cf-summary-grid-3">
-          <CashFlowKpi title="Receita Prevista" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${groups.income.length + transactionIncome.length} registros`} />
+          <CashFlowKpi title="Receita Prevista" value={plannedIncome} tone="income" icon={<TrendingUp size={19} />} detail={`${groups.income.length + looseIncomeTransactions.length} registros`} />
           <CashFlowKpi title="Despesa Prevista" value={plannedExpense} tone="expense" icon={<TrendingDown size={19} />} detail={`${expenseBudgetItems.length + transactionExpenses.length} registros`} />
           <CashFlowKpi title="Saldo Previsto" value={projectedBalance} tone={projectedBalance >= 0 ? "income" : "expense"} icon={<Wallet size={19} />} detail={`Receita prevista menos despesa prevista`} />
         </div>
