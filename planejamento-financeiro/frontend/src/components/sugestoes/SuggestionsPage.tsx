@@ -72,7 +72,7 @@ export function SuggestionsPage({ userId, onDone }: { userId: string; onDone: (m
               <div style={{ minWidth: 0 }}>
                 <div className="cf-row-title">{item.title}</div>
                 <div className="cf-row-sub">{item.message}</div>
-                <div className="cf-row-sub">{formatDate(item.created_at)}</div>
+                <div className="cf-row-sub">{formatDateTime(item.created_at)}</div>
               </div>
               <StatusBadge status={item.status} />
             </div>
@@ -83,8 +83,15 @@ export function SuggestionsPage({ userId, onDone }: { userId: string; onDone: (m
   );
 }
 
-function formatDate(value: string) {
+function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date);
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
 }
