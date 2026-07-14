@@ -194,7 +194,10 @@ class AuthUseCases:
             raise AuthError("E-mail ou senha invalidos.", "invalid_credentials", 401)
         if not user.active or not user.email_verified:
             raise AuthError("Seu celular ainda nao foi verificado por SMS. Informe o codigo enviado ou solicite um novo.", "email_not_verified", 403)
-        self.users.update(user.id, {"last_login_at": datetime.utcnow()})
+        try:
+            self.users.update(user.id, {"last_login_at": datetime.utcnow()})
+        except Exception:
+            logger.exception("auth.login.last_login_update_failed user_id=%s email=%s", user.id, email)
         logger.info("auth.login.completed user_id=%s email=%s", user.id, email)
         return {
             "access_token": self.jwt.create_access_token(user.id),

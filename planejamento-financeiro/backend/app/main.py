@@ -15,6 +15,7 @@ from app.interfaces.api.routes import (
     health_routes,
     projection_routes,
     savings_routes,
+    suggestion_routes,
     transaction_routes,
     user_routes,
     whatsapp_routes,
@@ -85,4 +86,5 @@ app.include_router(billing_routes.router, prefix="/api")
 app.include_router(dashboard_routes.router, prefix="/api")
 app.include_router(projection_routes.router, prefix="/api")
 app.include_router(savings_routes.router, prefix="/api")
+app.include_router(suggestion_routes.router, prefix="/api")
 app.include_router(whatsapp_routes.router, prefix="/api")

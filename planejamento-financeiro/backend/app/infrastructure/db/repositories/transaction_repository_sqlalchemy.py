@@ -31,6 +31,30 @@ class SqlAlchemyTransactionRepository:
             raise NotFoundError("Transacao nao encontrada.")
         return tx
 
+    def get_by_budget_id_and_user_id(self, budget_id: str, user_id: str) -> TransactionModel | None:
+        stmt = (
+            select(TransactionModel)
+            .options(joinedload(TransactionModel.category), joinedload(TransactionModel.budget))
+            .where(TransactionModel.budget_id == budget_id, TransactionModel.user_id == user_id)
+            .order_by(TransactionModel.created_at.desc(), TransactionModel.updated_at.desc())
+        )
+        return self.db.scalar(stmt)
+
+    def get_by_budget_id_and_user_id_month(self, budget_id: str, user_id: str, month_key: str) -> TransactionModel | None:
+        start, end = date_range_for_month(month_key)
+        stmt = (
+            select(TransactionModel)
+            .options(joinedload(TransactionModel.category), joinedload(TransactionModel.budget))
+            .where(
+                TransactionModel.budget_id == budget_id,
+                TransactionModel.user_id == user_id,
+                TransactionModel.transaction_date >= start,
+                TransactionModel.transaction_date < end,
+            )
+            .order_by(TransactionModel.created_at.desc(), TransactionModel.updated_at.desc())
+        )
+        return self.db.scalar(stmt)
+
     def list_by_user_month(self, user_id: str, month_key: str, filters: dict | None = None):
         start, end = date_range_for_month(month_key)
         stmt = (

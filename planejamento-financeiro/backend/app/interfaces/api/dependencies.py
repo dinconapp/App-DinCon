@@ -8,6 +8,7 @@ from app.infrastructure.db.repositories.budget_repository_sqlalchemy import SqlA
 from app.infrastructure.db.repositories.category_repository_sqlalchemy import SqlAlchemyCategoryRepository
 from app.infrastructure.db.repositories.email_verification_repository_sqlalchemy import SqlAlchemyEmailVerificationRepository
 from app.infrastructure.db.repositories.savings_repository_sqlalchemy import SqlAlchemySavingsInvestmentRepository
+from app.infrastructure.db.repositories.suggestion_repository_sqlalchemy import SqlAlchemySuggestionRepository
 from app.infrastructure.db.repositories.transaction_repository_sqlalchemy import SqlAlchemyTransactionRepository
 from app.infrastructure.db.repositories.user_repository_sqlalchemy import SqlAlchemyUserRepository
 from app.infrastructure.db.repositories.whatsapp_account_repository_sqlalchemy import SqlAlchemyWhatsAppAccountRepository
@@ -25,6 +26,7 @@ def repositories(db: Session):
         "budgets": SqlAlchemyBudgetRepository(db),
         "transactions": SqlAlchemyTransactionRepository(db),
         "savings": SqlAlchemySavingsInvestmentRepository(db),
+        "suggestions": SqlAlchemySuggestionRepository(db),
         "whatsapp_accounts": SqlAlchemyWhatsAppAccountRepository(db),
         "whatsapp_messages": SqlAlchemyWhatsAppMessageRepository(db),
         "whatsapp_drafts": SqlAlchemyWhatsAppTransactionDraftRepository(db),

@@ -8,7 +8,10 @@ export type StatusKey =
   | "projected"
   | "whatsapp"
   | "manual"
-  | "fixed_bill";
+  | "fixed_bill"
+  | "open"
+  | "reviewing"
+  | "closed";
 
 const labels: Record<StatusKey, string> = {
   planned: "Previsto",
@@ -21,6 +24,9 @@ const labels: Record<StatusKey, string> = {
   whatsapp: "WhatsApp",
   manual: "Manual",
   fixed_bill: "Conta fixa",
+  open: "Aberto",
+  reviewing: "Em análise",
+  closed: "Encerrado",
 };
 
 export function StatusBadge({ status, label }: { status: StatusKey; label?: string }) {

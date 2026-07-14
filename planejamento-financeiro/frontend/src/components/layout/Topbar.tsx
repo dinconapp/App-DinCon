@@ -17,6 +17,7 @@ const titles: Record<string, { title: string; subtitle: string; action?: string 
   transacoes: { title: "Lançamentos", subtitle: "Consulte tudo que entrou e saiu no mês." },
   contas: { title: "Contas", subtitle: "Acompanhe contas fixas pendentes, pagas e atrasadas." },
   cofrinho: { title: "Cofrinho", subtitle: "Projete seus investimentos e acompanhe a evolução mês a mês." },
+  sugestoes: { title: "Caixa de Sugestões", subtitle: "Central para registrar ideias, melhorias e observações do produto." },
   perfil: { title: "Perfil", subtitle: "Gerencie seus dados pessoais, segurança, integrações e assinatura." }
 };
 
@@ -68,7 +69,7 @@ export function Topbar({
       </div>
       <div className="cf-actions">
         <ThemeToggleButton />
-        {active !== "perfil" && active !== "cofrinho" && <MonthNavigator monthKey={monthKey} onPrevious={onPrevious} onNext={onNext} />}
+        {active !== "perfil" && active !== "cofrinho" && active !== "sugestoes" && <MonthNavigator monthKey={monthKey} onPrevious={onPrevious} onNext={onNext} />}
         {data.action && onAction && <Button variant="primary" icon={<Plus size={17} />} onClick={onAction}>{data.action}</Button>}
         <div className="cf-account-menu" ref={menuRef}>
           <button className="cf-account-trigger" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Ban, CalendarClock, CheckCircle2, Clock3, Info, Plus, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { AlertTriangle, Ban, CalendarClock, CheckCircle2, Clock3, Info, Plus, RotateCcw, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -37,6 +37,7 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   const [fabOpen, setFabOpen] = useState(false);
   const [bills, setBills] = useState<{ pending: Bill[]; paid: Bill[] }>({ pending: [], paid: [] });
   const [billsLoading, setBillsLoading] = useState(true);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (actionToken) setEditing(null);
@@ -69,22 +70,37 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
   const transactionIncome = useMemo(() => calculationTransactions.filter((item) => item.kind === "income"), [calculationTransactions]);
   const looseIncomeTransactions = useMemo(() => transactionIncome.filter((item) => !item.budget_id), [transactionIncome]);
   const paidBillIds = useMemo(() => new Set(bills.paid.map((item) => item.budget_id)), [bills.paid]);
-  const paidExpenseBudgetIds = useMemo(() => new Set(activeTransactions.filter((item) => item.kind === "expense" && item.status === "paid" && item.budget_id).map((item) => item.budget_id as string)), [activeTransactions]);
+  const paidExpenseTransactionsByBudgetId = useMemo(() => {
+    const map = new Map<string, Transaction>();
+    activeTransactions
+      .filter((item) => item.kind === "expense" && item.status === "paid" && item.budget_id)
+      .forEach((item) => {
+        const budgetId = item.budget_id as string;
+        const current = map.get(budgetId);
+        if (!current || current.transaction_date < item.transaction_date) {
+          map.set(budgetId, item);
+        }
+      });
+    return map;
+  }, [activeTransactions]);
+  const paidExpenseBudgetIds = useMemo(() => new Set(paidExpenseTransactionsByBudgetId.keys()), [paidExpenseTransactionsByBudgetId]);
   const receivedIncomeIds = useMemo(() => new Set(activeTransactions.filter((item) => item.kind === "income" && item.status === "paid" && item.budget_id).map((item) => item.budget_id as string)), [activeTransactions]);
   const expenseBudgetItems = useMemo(() => [...groups.fixed, ...groups.variable], [groups.fixed, groups.variable]);
   const receivedIncomeItems = useMemo(() => groups.income.filter((item) => receivedIncomeIds.has(item.id)), [groups.income, receivedIncomeIds]);
   const openExpenseBudgetItems = useMemo(() => expenseBudgetItems.filter((item) => !paidBillIds.has(item.id)), [expenseBudgetItems, paidBillIds]);
-  const overdueExpenseBudgetItems = useMemo(() => openExpenseBudgetItems.filter((item) => getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds).value === "overdue"), [openExpenseBudgetItems, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds]);
-  const pendingExpenseBudgetItems = useMemo(() => openExpenseBudgetItems.filter((item) => getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds).value === "pending"), [openExpenseBudgetItems, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds]);
+  const overdueExpenseBudgetItems = useMemo(() => openExpenseBudgetItems.filter((item) => getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseTransactionsByBudgetId, receivedIncomeIds).value === "overdue"), [openExpenseBudgetItems, monthKey, paidBillIds, paidExpenseTransactionsByBudgetId, receivedIncomeIds]);
+  const pendingExpenseBudgetItems = useMemo(() => openExpenseBudgetItems.filter((item) => getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseTransactionsByBudgetId, receivedIncomeIds).value === "pending"), [openExpenseBudgetItems, monthKey, paidBillIds, paidExpenseTransactionsByBudgetId, receivedIncomeIds]);
   const overdueTransactionExpenses = useMemo(() => transactionExpenses.filter((item) => isOverdueTransaction(item)), [transactionExpenses]);
   const pendingTransactionExpenses = useMemo(() => transactionExpenses.filter((item) => item.status === "pending" && !isOverdueTransaction(item)), [transactionExpenses]);
   const totalBudget = (rows: Budget[]) => rows.reduce((sum, item) => sum + item.amount, 0);
   const sumTx = (rows: Transaction[], status?: Transaction["status"]) => rows.reduce((sum, item) => sum + (status && item.status !== status ? 0 : item.amount), 0);
-  // A previsão do mês considera o budget da receita uma única vez.
+  // A previsao do mes considera cada despesa prevista uma unica vez, sem duplicar por status.
   const plannedIncome = totalBudget(groups.income) + sumTx(looseIncomeTransactions);
   const receivedIncome = totalBudget(receivedIncomeItems) + sumTx(looseIncomeTransactions, "paid");
   const plannedExpense = totalBudget(expenseBudgetItems) + sumTx(transactionExpenses);
-  const paidExpense = sumTx(transactionExpenses, "paid") + groups.fixed.filter((item) => paidBillIds.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
+  const paidExpense = sumTx(transactionExpenses, "paid")
+    + groups.fixed.filter((item) => paidBillIds.has(item.id)).reduce((sum, item) => sum + item.amount, 0)
+    + groups.variable.filter((item) => paidExpenseBudgetIds.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
   const overdueExpense = overdueExpenseBudgetItems.reduce((sum, item) => sum + item.amount, 0) + overdueTransactionExpenses.reduce((sum, item) => sum + item.amount, 0);
   const pendingExpense = pendingExpenseBudgetItems.reduce((sum, item) => sum + item.amount, 0) + pendingTransactionExpenses.reduce((sum, item) => sum + item.amount, 0);
   const projectedBalance = plannedIncome - plannedExpense;
@@ -103,36 +119,21 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
 
   async function toggleBill(item: Budget) {
     if (item.budget_type === "variable") {
+      if (togglingId === item.id) return;
+      setTogglingId(item.id);
       try {
-        const paidTransaction = tx.items.find((txItem) => txItem.kind === "expense" && txItem.status === "paid" && txItem.budget_id === item.id);
-        if (paidTransaction) {
-          await tx.save({
-            user_id: paidTransaction.user_id,
-            budget_id: paidTransaction.budget_id,
-            category_id: paidTransaction.category_id,
-            kind: paidTransaction.kind,
-            title: paidTransaction.title,
-            amount: paidTransaction.amount,
-            transaction_date: paidTransaction.transaction_date,
-            status: "pending"
-          }, paidTransaction.id);
+        if (paidExpenseBudgetIds.has(item.id)) {
+          await unpayBill(userId, monthKey, item.id);
           onDone("Despesa voltou para pendente.");
         } else {
-          await tx.save({
-            user_id: userId,
-            budget_id: item.id,
-            category_id: item.category_id,
-            kind: "expense",
-            title: item.description,
-            amount: item.amount,
-            transaction_date: item.has_due_date && item.due_day ? `${monthKey}-${String(item.due_day).padStart(2, "0")}` : `${monthKey}-15`,
-            status: "paid"
-          });
+          await payBill(userId, monthKey, item.id);
           onDone("Despesa marcada como paga.");
         }
         await Promise.all([tx.reload(), loadBills(), reloadBudgets()]);
       } catch {
         onDone("Nao foi possivel atualizar a despesa. Tente novamente.", "error");
+      } finally {
+        setTogglingId(null);
       }
       return;
     }
@@ -207,10 +208,11 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
               key={item.id}
               item={item}
               monthKey={monthKey}
-              status={getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds)}
+              status={getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseTransactionsByBudgetId, receivedIncomeIds)}
               onEdit={() => setEditing(item)}
               onDelete={() => deleteItem(item)}
               onTogglePaid={() => toggleBill(item)}
+              busy={togglingId === item.id}
             />
           ))}
         </CashFlowSection>
@@ -222,10 +224,11 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
               key={item.id}
               item={item}
               monthKey={monthKey}
-              status={getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds)}
+              status={getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseTransactionsByBudgetId, receivedIncomeIds)}
               onEdit={() => setEditing(item)}
               onDelete={() => deleteItem(item)}
               onTogglePaid={() => toggleIncome(item)}
+              busy={togglingId === item.id}
             />
           ))}
         </CashFlowSection>
@@ -237,10 +240,11 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
               key={item.id}
               item={item}
               monthKey={monthKey}
-              status={getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseBudgetIds, receivedIncomeIds)}
+              status={getBudgetPaymentStatus(item, monthKey, paidBillIds, paidExpenseTransactionsByBudgetId, receivedIncomeIds)}
               onEdit={() => setEditing(item)}
               onDelete={() => deleteItem(item)}
               onTogglePaid={() => toggleBill(item)}
+              busy={togglingId === item.id}
             />
           ))}
         </CashFlowSection>
@@ -305,7 +309,7 @@ function dueDateFor(monthKey: string, dueDay?: number | null) {
   return new Date(year, month - 1, Math.min(dueDay, lastDay), 23, 59, 59);
 }
 
-function getBudgetPaymentStatus(item: Budget, monthKey: string, paidBillIds: Set<string>, paidExpenseBudgetIds: Set<string>, receivedIncomeIds: Set<string>): PaymentStatus {
+function getBudgetPaymentStatus(item: Budget, monthKey: string, paidBillIds: Set<string>, paidExpenseTransactionsByBudgetId: Map<string, Transaction>, receivedIncomeIds: Set<string>): PaymentStatus {
   if (item.kind === "income") {
     if (receivedIncomeIds.has(item.id)) return { value: "received", label: "Recebido", detail: "Receita recebida" };
     if (!item.has_due_date || !item.due_day) return { value: "planned", label: "Previsto", detail: "Receita prevista" };
@@ -315,7 +319,9 @@ function getBudgetPaymentStatus(item: Budget, monthKey: string, paidBillIds: Set
     return { value: "pending", label: "Pendente", detail: dueDate ? `Recebimento previsto para ${formatDateFromDate(dueDate)}` : "Aguardando recebimento" };
   }
 
-  if (paidBillIds.has(item.id) || paidExpenseBudgetIds.has(item.id)) return { value: "paid", label: "Pago", detail: "Pagamento confirmado" };
+  const paidExpenseTransaction = paidExpenseTransactionsByBudgetId.get(item.id);
+  if (paidBillIds.has(item.id)) return { value: "paid", label: "Pago", detail: "Pagamento confirmado" };
+  if (paidExpenseTransaction) return { value: "paid", label: "Pago", detail: `Pagamento confirmado em ${formatDate(paidExpenseTransaction.transaction_date)}` };
   if (!item.has_due_date || !item.due_day) return { value: "planned", label: "Previsto", detail: "Sem vencimento" };
 
   const dueDate = dueDateFor(monthKey, item.due_day);
@@ -387,7 +393,8 @@ function CashFlowBudgetRow({
   status,
   onEdit,
   onDelete,
-  onTogglePaid
+  onTogglePaid,
+  busy
 }: {
   item: Budget;
   monthKey: string;
@@ -395,6 +402,7 @@ function CashFlowBudgetRow({
   onEdit: () => void;
   onDelete: () => void;
   onTogglePaid?: () => void;
+  busy?: boolean;
 }) {
   const dueDate = item.has_due_date ? dueDateFor(monthKey, item.due_day) : null;
   const canToggle = onTogglePaid && (
@@ -424,7 +432,15 @@ function CashFlowBudgetRow({
         <StatusBadge status={status.value} label={status.label} />
         <Money value={item.amount} size="sm" tone={item.kind === "income" ? "income" : "expense"} />
         {canToggle && (
-          <Button square icon={status.value === "paid" ? <Clock3 size={16} /> : <CheckCircle2 size={16} />} onClick={onTogglePaid} aria-label={item.kind === "income" ? (status.value === "paid" ? "Voltar para previsto" : "Marcar como recebido") : (status.value === "paid" ? "Voltar para pendente" : "Marcar como pago")} />
+          <Button
+            square
+            icon={status.value === "paid" ? <RotateCcw size={16} /> : <CheckCircle2 size={16} />}
+            onClick={onTogglePaid}
+            disabled={busy}
+            aria-label={item.kind === "income"
+              ? (status.value === "paid" ? "Voltar para previsto" : "Marcar como recebido")
+              : (status.value === "paid" ? "Voltar para pendente" : "Marcar como pago")}
+          />
         )}
         <RowActionsMenu onEdit={onEdit} onDelete={onDelete} deleteLabel="Remover" />
       </div>

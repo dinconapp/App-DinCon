@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -53,19 +55,22 @@ def pay_bill(budget_id: str, payload: BillAction, db: Session = Depends(get_db),
     repos = repositories(db)
     budget = repos["budgets"].get(budget_id)
     assert_user_access(budget.user_id, authenticated_user_id)
-    if not budget.has_due_date or budget.kind != "expense":
-        raise BusinessRuleError("Este planejamento nao e uma conta pagavel.")
-    repos["transactions"].delete_paid_bill(payload.user_id, budget_id, payload.month_key)
-    tx = repos["transactions"].create({
+    if budget.kind != "expense":
+        raise BusinessRuleError("Este planejamento nao e uma despesa pagavel.")
+    transaction_date = date.today() if budget.budget_type == "variable" else (due_date(payload.month_key, budget.due_day) if budget.has_due_date and budget.due_day else date.today())
+    data = {
         "user_id": payload.user_id,
         "budget_id": budget.id,
         "category_id": budget.category_id,
         "kind": "expense",
         "title": budget.description,
         "amount": budget.amount,
-        "transaction_date": due_date(payload.month_key, budget.due_day),
+        "transaction_date": transaction_date,
         "status": "paid",
-    })
+        "source": "budget",
+    }
+    existing = repos["transactions"].get_by_budget_id_and_user_id_month(budget.id, payload.user_id, payload.month_key)
+    tx = repos["transactions"].update(existing.id, data) if existing else repos["transactions"].create(data)
     return {"paid": True, "transaction_id": tx.id}
 
 
@@ -86,9 +91,8 @@ def receive_income(budget_id: str, payload: BillAction, db: Session = Depends(ge
     assert_user_access(budget.user_id, authenticated_user_id)
     if budget.kind != "income":
         raise BusinessRuleError("Este planejamento nao e uma entrada recebivel.")
-    repos["transactions"].delete_paid_bill(payload.user_id, budget_id, payload.month_key)
     transaction_day = budget.due_day if budget.has_due_date and budget.due_day else 1
-    tx = repos["transactions"].create({
+    data = {
         "user_id": payload.user_id,
         "budget_id": budget.id,
         "category_id": budget.category_id,
@@ -97,7 +101,10 @@ def receive_income(budget_id: str, payload: BillAction, db: Session = Depends(ge
         "amount": budget.amount,
         "transaction_date": due_date(payload.month_key, transaction_day),
         "status": "paid",
-    })
+        "source": "budget",
+    }
+    existing = repos["transactions"].get_by_budget_id_and_user_id_month(budget.id, payload.user_id, payload.month_key)
+    tx = repos["transactions"].update(existing.id, data) if existing else repos["transactions"].create(data)
     return {"received": True, "transaction_id": tx.id}
 
 

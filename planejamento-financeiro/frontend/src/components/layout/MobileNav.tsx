@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CalendarDays, ClipboardList, LayoutDashboard, PiggyBank, ReceiptText } from "lucide-react";
+import { CalendarDays, ClipboardList, LayoutDashboard, Lightbulb, PiggyBank, ReceiptText } from "lucide-react";
 import { resolveMonthKey } from "@/utils/month";
 
 const nav = [
@@ -10,7 +10,8 @@ const nav = [
   { href: "/fluxo-de-caixa", icon: CalendarDays, key: "planejamento", label: "Fluxo de Caixa" },
   { href: "/transacoes", icon: ReceiptText, key: "transacoes", label: "Lançamentos" },
   { href: "/contas", icon: ClipboardList, key: "contas", label: "Contas" },
-  { href: "/cofrinho", icon: PiggyBank, key: "cofrinho", label: "Cofrinho" }
+  { href: "/cofrinho", icon: PiggyBank, key: "cofrinho", label: "Cofrinho" },
+  { href: "/caixa-de-sugestoes", icon: Lightbulb, key: "sugestoes", label: "Sugestões" }
 ];
 
 export function MobileNav({ active }: { active: string }) {

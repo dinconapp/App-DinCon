@@ -18,5 +18,5 @@ export function isFixedBudgetTransaction(item: any): boolean {
 }
 
 export function isLooseTransaction(item: any): boolean {
-  return !isFixedBudgetTransaction(item);
+  return !Boolean(item?.budget_id ?? item?.budgetId);
 }

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
@@ -15,12 +15,13 @@ import { TransactionsPage } from "@/components/transacoes/TransactionList";
 import { BillsPage } from "@/components/contas/BillsList";
 import { SavingsDashboard } from "@/components/cofrinho/SavingsDashboard";
 import { ProfilePageClean } from "@/components/perfil/ProfilePageClean";
+import { SuggestionsPage } from "@/components/sugestoes/SuggestionsPage";
 
 export function FinanceShell({
   active,
   children,
 }: {
-  active: "dashboard" | "planejamento" | "transacoes" | "contas" | "cofrinho" | "perfil" | "assinatura" | "planos";
+  active: "dashboard" | "planejamento" | "transacoes" | "contas" | "cofrinho" | "perfil" | "assinatura" | "planos" | "sugestoes";
   children?: ReactNode;
 }) {
   const [userInitial, setUserInitial] = useState("U");
@@ -50,6 +51,7 @@ export function FinanceShell({
                     {active === "contas" && <BillsPage userId={userId} monthKey={monthKey} onDone={showToast} />}
                     {active === "cofrinho" && <SavingsDashboard userId={userId} actionToken={actionToken} onDone={showToast} />}
                     {active === "perfil" && <ProfilePageClean userId={userId} onInitial={setUserInitial} onDone={showToast} />}
+                    {active === "sugestoes" && <SuggestionsPage userId={userId} onDone={showToast} />}
                   </>
                 )}
               </>
@@ -64,3 +66,5 @@ export function FinanceShell({
     </AuthGuard>
   );
 }
+
+
