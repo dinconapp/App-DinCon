@@ -260,15 +260,15 @@ export function PlanningPage({ userId, monthKey, actionToken, onDone }: { userId
         {fabOpen && (
           <div className="cf-fab-menu">
             <button type="button" onClick={() => { setNewBudgetKind("income"); setNewBudgetHasDueDate(false); setEditing(null); setFabOpen(false); }}>
-              <span>Nova receita prevista</span>
+              <span className="cf-fab-label">Nova receita prevista</span>
               <InfoTooltip text="Use para salário, aluguel recebido ou outra receita esperada no mês." />
             </button>
             <button type="button" onClick={() => { setNewBudgetKind("expense"); setNewBudgetHasDueDate(true); setEditing(null); setFabOpen(false); }}>
-              <span>Nova conta fixa</span>
+              <span className="cf-fab-label">Nova conta fixa</span>
               <InfoTooltip text="Use para compromissos recorrentes, como aluguel, energia, internet e cartão." />
             </button>
             <button type="button" onClick={() => { setTransactionEditing(null); setFabOpen(false); }}>
-              <span>Novo lançamento avulso</span>
+              <span className="cf-fab-label">Novo lançamento avulso</span>
               <InfoTooltip text="Use para entradas e gastos realizados fora das previsões fixas." />
             </button>
           </div>

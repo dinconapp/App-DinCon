@@ -29,6 +29,7 @@ export function FinanceShell({
   const { monthKey, previousMonth, nextMonth } = useMonth();
   const { toast, showToast } = useToast();
   const [actionToken, setActionToken] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     setUserId(getSession()?.id ?? null);
@@ -37,8 +38,8 @@ export function FinanceShell({
   return (
     <AuthGuard>
       <div className="cf-app">
-        <div className="cf-shell">
-          <Sidebar active={active} initial={userInitial} />
+        <div className={`cf-shell${sidebarCollapsed ? " is-sidebar-collapsed" : ""}`}>
+          <Sidebar active={active} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((value) => !value)} />
           <main className="cf-main">
             {userId ? (
               <>
