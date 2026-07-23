@@ -405,7 +405,8 @@
   .cf-actions { justify-content: flex-start; }
   .cf-kpis, .cf-two, .cf-three { grid-template-columns: 1fr; }
   .cf-cashflow-dashboard { grid-template-columns: 1fr; }
-  .cf-cashflow-row, .cf-cashflow-actions { align-items: flex-start; }
+  .cf-cashflow-row { align-items: stretch; flex-direction: column; }
+  .cf-cashflow-actions { align-items: flex-start; }
   .cf-cashflow-actions { justify-content: flex-start; width: 100%; padding-left: 46px; }
   .cf-lp-hero, .cf-lp-features { grid-template-columns: 1fr; }
   .cf-lp-hero { min-height: auto; padding: 54px 0 28px; }
